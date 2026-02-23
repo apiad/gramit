@@ -30,14 +30,14 @@ Gramit offers two powerful ways to bridge your terminal output to Telegram:
 2.  **External Stream Mode (`-o` / `--output-stream`):** For complex TUI applications where raw terminal output is "noisy" (filled with borders, colors, and ANSI codes), you can instruct Gramit to "tail" a clean side-log file instead.
 
 ### ⌨️ Key Shortcuts & Modifiers
-Interact with TUIs effortlessly using Telegram commands:
+Interact with TUIs effortlessly using Telegram commands (use spaces between modifiers and keys):
 -   **Special Keys:** `/enter`, `/esc`, `/t` (Tab), `/b` (Backspace), `/d` (Delete).
 -   **Arrow Keys:** `/up`, `/down`, `/left`, `/right`.
 -   **Modifiers:**
-    -   `/c<key>` for Control (e.g., `/ca` for `Ctrl+A`).
-    -   `/a<key>` for Alt/Meta (e.g., `/ax` for `Alt+X`).
-    -   `/s<key>` for Shift.
--   **Combinations:** `/c/sa` for `Ctrl+Shift+A`, `/a/c/up` for `Alt+Ctrl+Up`, etc.
+    -   `/c <key>` for Control (e.g., `/c a` for `Ctrl+A`).
+    -   `/a <key>` for Alt/Meta (e.g., `/a x` for `Alt+X`).
+    -   `/s <key>` for Shift.
+-   **Combinations:** `/c /s a` for `Ctrl+Shift+A`, `/a /c /up` for `Alt+Ctrl+Up`, etc.
 
 ### 🖥️ Native Terminal Experience
 

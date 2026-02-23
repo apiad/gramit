@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **External Output Streaming:** New `-o` / `--output-stream` option to "tail" a file for output instead of capturing PTY stdout. This allows clean bridging of complex TUI applications.
-- **Key Shortcuts & Modifiers:** Support for sending special keys (`/enter`, `/esc`, `/up`, etc.) and modifier combinations (`/ca` for Ctrl+A, `/c/sa` for Ctrl+Shift+A) from Telegram.
+- **Key Shortcuts & Modifiers:** Support for sending special keys (`/enter`, `/esc`, `/up`, etc.) and modifier combinations (e.g., `/c a` for Ctrl+A, `/c /s a` for Ctrl+Shift+A) from Telegram using an intuitive space-separated syntax.
 - **Terminal Size Inheritance:** Child processes now inherit the terminal size of the host on startup.
 - **Dynamic Resizing:** Added support for propagating `SIGWINCH` signals, ensuring TUI applications resize correctly with the terminal window.
 - **Local Mirroring:** Gramit now mirrors the child process output to the local terminal, allowing for direct monitoring.

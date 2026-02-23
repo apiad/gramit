@@ -46,15 +46,13 @@ class InputRouter:
             return
 
         chat_id = update.message.chat.id
-        command_text = update.message.text
+        command_text = update.message.text.strip()
 
         if chat_id not in self._authorized_chat_ids:
             return
 
-        command = command_text.split(" ")[0]
-        
         # 1. Check for standard /quit command
-        if command == "/quit":
+        if command_text == "/quit":
             await context.bot.send_message(
                 chat_id=chat_id, text="Shutting down the orchestrated process."
             )
@@ -63,13 +61,15 @@ class InputRouter:
             return
 
         # 2. Check for special key shortcuts
-        key_sequence = self._parse_key_command(command)
+        # We pass the full text now to handle space-separated modifiers
+        key_sequence = self._parse_key_command(command_text)
         if key_sequence:
             await self._orchestrator.write(key_sequence)
 
-    def _parse_key_command(self, cmd: str) -> Optional[str]:
+    def _parse_key_command(self, text: str) -> Optional[str]:
         """
-        Parses a command into a terminal key sequence.
+        Parses a command string into a terminal key sequence.
+        Supports space-separated modifiers like "/c /s a".
         """
         # Simple Mappings
         mapping = {
@@ -84,32 +84,37 @@ class InputRouter:
             "/right": "\x1b[C",
         }
         
-        if cmd in mapping:
-            return mapping[cmd]
+        if text in mapping:
+            return mapping[text]
 
-        # Modifier combinations: /c<a>, /a<a>, /c/s<a>, etc.
-        import re
-        
-        # Pattern to match modifiers and a final character
-        # e.g., /c/sa -> groups ('/c/s', 'a')
-        match = re.match(r"^((?:/[cas])+)((?:[a-zA-Z0-9])|enter|esc|t|b|d|up|down|left|right)$", cmd)
-        if not match:
+        # Handle space-separated parts: "/c /s a"
+        parts = text.split()
+        if not parts:
             return None
             
-        modifiers, key = match.groups()
+        modifiers = []
+        base_key_part = None
         
-        # Resolve the base key first
-        base_key = key
-        if key in ["enter", "esc", "t", "b", "d", "up", "down", "left", "right"]:
-            base_key = mapping["/" + key]
+        for part in parts:
+            if part in ["/c", "/a", "/s"]:
+                modifiers.append(part[1:]) # keep 'c', 'a', or 's'
+            elif part.startswith("/") and part in mapping:
+                base_key_part = mapping[part]
+            elif len(part) == 1:
+                base_key_part = part
+            elif part in ["enter", "esc", "t", "b", "d", "up", "down", "left", "right"]:
+                base_key_part = mapping["/" + part]
+            else:
+                # Unknown part, bail out to avoid sending junk
+                return None
+                
+        if base_key_part is None:
+            return None
+            
+        result = base_key_part
         
-        result = base_key
-        
-        # Apply modifiers in reverse order (outermost last)
-        # /c/sa -> apply Shift, then Control
-        mod_list = modifiers.strip("/").split("/")
-        
-        for mod in reversed(mod_list):
+        # Apply modifiers in reverse order (inner to outer)
+        for mod in reversed(modifiers):
             if mod == "c": # Control
                 if len(result) == 1:
                     c = result.lower()
@@ -123,12 +128,7 @@ class InputRouter:
             elif mod == "a": # Alt/Meta
                 result = "\x1b" + result
             elif mod == "s": # Shift
-                # For single characters, Shift just uppercases
                 if len(result) == 1:
                     result = result.upper()
-                # For other keys, Shift behavior varies by terminal,
-                # but standard ANSI doesn't have a universal Shift+Enter that is different.
-                # We'll just leave it as is for now.
-                pass
                 
         return result

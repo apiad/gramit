@@ -111,6 +111,7 @@ async def main():
     # Catch all messages for debugging
     application.add_handler(MessageHandler(filters.ALL, input_router.handle_message))
     application.add_handler(CommandHandler("quit", input_router.handle_command))
+    application.add_handler(CommandHandler("start", input_router.handle_start)) # Add /start handler
     application.add_error_handler(error_handler) # Add error handler
 
     # --- Main Execution Loop ---

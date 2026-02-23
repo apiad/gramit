@@ -22,15 +22,15 @@ The goal of this phase is to set up a clean, professional Python project structu
 
 This phase focuses on creating and managing a child process within a pseudo-terminal (PTY), removing the need for `tmux`.
 
-*   [ ] **Testing:**
-    *   [ ] Write a test for the PTY orchestrator that confirms a child process is spawned correctly in a PTY.
-    *   [ ] Write a test to verify that data written to the master PTY descriptor is received by the child's `stdin`.
-    *   [ ] Write a test to verify that data sent from the child's `stdout` is readable from the master PTY descriptor.
-*   [ ] **Implementation:**
-    *   [ ] Create an `Orchestrator` class that uses `os.forkpty()` to spawn the target command.
-    *   [ ] Implement methods to manage the lifecycle of the child process (e.g., `start`, `shutdown`, checking if it's alive).
-*   [ ] **Documentation:**
-    *   [ ] Write docstrings for the `Orchestrator` class and its public methods, explaining how it manages the PTY.
+*   [x] **Testing:**
+    *   [x] Write a test for the PTY orchestrator that confirms a child process is spawned correctly in a PTY.
+    *   [x] Write a test to verify that data written to the master PTY descriptor is received by the child's `stdin`.
+    *   [x] Write a test to verify that data sent from the child's `stdout` is readable from the master PTY descriptor.
+*   [x] **Implementation:**
+    *   [x] Create an `Orchestrator` class that uses `os.forkpty()` to spawn the target command.
+    *   [x] Implement methods to manage the lifecycle of the child process (e.g., `start`, `shutdown`, checking if it's alive).
+*   [x] **Documentation:**
+    *   [x] Write docstrings for the `Orchestrator` class and its public methods, explaining how it manages the PTY.
 
 ## Phase 3: The Output Router (Line Mode)
 

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- I/O handling (`read`/`write`) to the `Orchestrator`.
 - `Orchestrator` class to manage child processes in a pseudo-terminal (PTY).
 - Initial project structure with `uv`, `pytest`, and core directories.
 - `GEMINI.md` with project development guidelines.

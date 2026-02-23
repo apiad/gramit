@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- `Orchestrator` class to manage child processes in a pseudo-terminal (PTY).
 - Initial project structure with `uv`, `pytest`, and core directories.
 - `GEMINI.md` with project development guidelines.
 - `DESIGN.md` v2.1, a robust architectural plan for the application.

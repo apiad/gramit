@@ -61,6 +61,11 @@ async def main():
         help="Run in registration mode to find a chat ID.",
     )
     parser.add_argument(
+        "-o",
+        "--output-stream",
+        help="Path to a file to tail for output instead of PTY stdout.",
+    )
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="The command to execute.",
@@ -122,6 +127,7 @@ async def main():
         orchestrator=orchestrator,
         sender=sender,
         mode="line",
+        output_stream=args.output_stream,
     )
 
     # --- Application Setup ---

@@ -70,19 +70,19 @@ This phase connects Gramit to Telegram and wires all the components together int
 
 This phase adds support for tailing an external file for output, bypassing the PTY's output capture. This is useful for complex TUI applications that can write a clean log to a file.
 
-*   [ ] **Testing:**
-    *   [ ] Write unit tests for a `FileTailer` component that can asynchronously watch a file for new appends.
-    *   [ ] Write integration tests for the `OutputRouter` when in `output-stream` mode, ensuring it ignores PTY output and correctly routes file-tailed data.
-*   [ ] **Implementation:**
-    *   [ ] Implement a `FileTailer` class (or similar mechanism) that handles opening, seeking to end, and asynchronously reading new data from a file.
-    *   [ ] Add the `-o` / `--output-stream <FILE>` CLI argument to `cli.py`.
-    *   [ ] Update `OutputRouter` to support reading from either the `Orchestrator` (default) or the `FileTailer`.
-    *   [ ] Ensure the `Orchestrator` still manages the PTY for `stdin` even when the output is being tailed from a file.
-*   [ ] **Documentation:**
-    *   [ ] Document the `--output-stream` feature in the `README.md`.
-    *   [ ] Explain the use case for this mode (e.g., bridging TUI apps that have a "log to file" feature).
-*   [ ] **Manual Verification:**
-    *   [ ] Run `gramit -o test.log my_app` and verify that appends to `test.log` are sent to Telegram while `stdin` still works.
+*   [x] **Testing:**
+    *   [x] Write unit tests for a `FileTailer` component that can asynchronously watch a file for new appends.
+    *   [x] Write integration tests for the `OutputRouter` when in `output-stream` mode, ensuring it ignores PTY output and correctly routes file-tailed data.
+*   [x] **Implementation:**
+    *   [x] Implement a `FileTailer` class (or similar mechanism) that handles opening, seeking to end, and asynchronously reading new data from a file.
+    *   [x] Add the `-o` / `--output-stream <FILE>` CLI argument to `cli.py`.
+    *   [x] Update `OutputRouter` to support reading from either the `Orchestrator` (default) or the `FileTailer`.
+    *   [x] Ensure the `Orchestrator` still manages the PTY for `stdin` even when the output is being tailed from a file.
+*   [x] **Documentation:**
+    *   [x] Document the `--output-stream` feature in the `README.md`.
+    *   [x] Explain the use case for this mode (e.g., bridging TUI apps that have a "log to file" feature).
+*   [x] **Manual Verification:**
+    *   [x] Run `gramit -o test.log my_app` and verify that appends to `test.log` are sent to Telegram while `stdin` still works.
 
 ## Phase 6: Finalization & Packaging
 

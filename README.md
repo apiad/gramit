@@ -89,11 +89,12 @@ gramit --chat-id YOUR_CHAT_ID ping 8.8.8.8
 - Any text you send to your bot on Telegram will be piped to the `stdin` of the running command.
 - Any `stdout` from the command will be sent back to you as a Telegram message.
 
-**Interactive Example (Reverse Echo):**
+**Interactive Example (TUI with side-log):**
 ```sh
-gramit python examples/reverse_echo.py
+# Start the example app and tell gramit to tail its log
+gramit -o tui_echo.log python examples/tui_echo_with_log.py
 ```
-Then, send messages to your bot on Telegram. It will echo them back in reverse.
+This is useful for complex TUIs where the terminal output is messy, but the application can write a clean interaction log to a file. Gramit will bridge the file content to Telegram while still piping your Telegram input to the app's `stdin`.
 
 **Features:**
 - Upon starting, Gramit sends an initial message to Telegram indicating the command being run.

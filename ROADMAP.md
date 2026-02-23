@@ -50,19 +50,19 @@ Before tackling the complexity of TUIs, we'll build the simpler line-based outpu
 
 This phase connects Gramit to Telegram and wires all the components together into a functioning application for line-based commands.
 
-*   [ ] **Testing:**
-    *   [ ] Write an integration test for the `InputRouter`. Using a mock Telegram client, simulate receiving a message and verify that the text is correctly written to the PTY master descriptor.
-    *   [ ] Add a test case to ensure messages from unauthorized `chat_id`s are ignored.
-*   [ ] **Implementation:**
-    *   [ ] Create the `InputRouter` class, which initializes the `python-telegram-bot` client and sets up message handlers.
-    *   [ ] Implement the `chat_id` authorization check.
-    *   [ ] Create the main application entrypoint (`__main__.py` or `cli.py`).
-    *   [ ] Implement CLI argument parsing (`--chat-id`, `--line-mode`, `command`).
-    *   [ ] Implement loading of the `GRAMIT_TELEGRAM_TOKEN` from environment variables / `.env` file.
-    *   [ ] Write the main `async` function that initializes and runs the `Orchestrator`, `InputRouter`, and `OutputRouter` together.
-*   [ ] **Documentation:**
-    *   [ ] Document the application's configuration requirements (`GRAMIT_TELEGRAM_TOKEN`, `--chat-id`).
-    *   [ ] Create an initial `README.md` with basic setup and usage instructions.
+*   [x] **Testing:**
+    *   [x] Write an integration test for the `InputRouter`. Using a mock Telegram client, simulate receiving a message and verify that the text is correctly written to the PTY master descriptor.
+    *   [x] Add a test case to ensure messages from unauthorized `chat_id`s are ignored.
+*   [x] **Implementation:**
+    *   [x] Create the `InputRouter` class, which initializes the `python-telegram-bot` client and sets up message handlers.
+    *   [x] Implement the `chat_id` authorization check.
+    *   [x] Create the main application entrypoint (`__main__.py` or `cli.py`).
+    *   [x] Implement CLI argument parsing (`--chat-id`, `--line-mode`, `command`).
+    *   [x] Implement loading of the `GRAMIT_TELEGRAM_TOKEN` from environment variables / `.env` file.
+    *   [x] Write the main `async` function that initializes and runs the `Orchestrator`, `InputRouter`, and `OutputRouter` together.
+*   [x] **Documentation:**
+    *   [x] Document the application's configuration requirements (`GRAMIT_TELEGRAM_TOKEN`, `--chat-id`).
+    *   [x] Create an initial `README.md` with basic setup and usage instructions.
 *   [ ] **Manual Verification:**
     *   [ ] Run the application end-to-end with a simple command (e.g., `ping 8.8.8.8`) to confirm the `line-mode` integration is working.
 

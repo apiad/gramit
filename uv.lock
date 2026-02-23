@@ -123,7 +123,7 @@ wheels = [
 [[package]]
 name = "gramit"
 version = "0.0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "pyte" },
     { name = "python-dotenv" },

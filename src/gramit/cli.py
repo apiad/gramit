@@ -91,20 +91,20 @@ async def main():
         parser.error("the following arguments are required: command")
 
     # --- Component Setup ---
-    orchestrator = Orchestrator(args.command)
+    # orchestrator = Orchestrator(args.command) # Temporarily commented out
 
     bot = Bot(token)
     sender = lambda msg: bot.send_message(chat_id=args.chat_id, text=msg)
 
     input_router = InputRouter(
-        orchestrator=orchestrator,
+        orchestrator=None, # Temporarily set to None
         authorized_chat_ids=[int(args.chat_id)],
     )
-    output_router = OutputRouter(
-        orchestrator=orchestrator,
-        sender=sender,
-        mode="line",
-    )
+    # output_router = OutputRouter( # Temporarily commented out
+    #     orchestrator=orchestrator,
+    #     sender=sender,
+    #     mode="line",
+    # )
 
     # --- Application Setup ---
     application = Application.builder().token(token).build()
@@ -114,8 +114,8 @@ async def main():
     application.add_error_handler(error_handler) # Add error handler
 
     # --- Main Execution Loop ---
-    output_task = None
-    telegram_polling_task = None # New task for Telegram polling
+    # output_task = None # Temporarily commented out
+    # telegram_polling_task = None # Temporarily commented out
     try:
         print("CLI: Initializing Telegram application...")
         await application.initialize()
@@ -131,40 +131,44 @@ async def main():
         )
         await sender(initial_message)
 
-        proc_pid = await orchestrator.start()
-        print(f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}")
-        print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}")
+        # proc_pid = await orchestrator.start() # Temporarily commented out
+        # print(f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}") # Temporarily commented out
+        # print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}") # Temporarily commented out
 
-        output_task = asyncio.create_task(output_router.start())
-        telegram_polling_task = asyncio.create_task(application.run_until_disconnected()) # Keep Telegram polling alive
+        # output_task = asyncio.create_task(output_router.start()) # Temporarily commented out
+        # telegram_polling_task = asyncio.create_task(application.run_until_disconnected()) # Temporarily commented out
 
         # Run both tasks concurrently. If one finishes, the other should be cancelled.
-        await asyncio.gather(output_task, telegram_polling_task)
+        # await asyncio.gather(output_task, telegram_polling_task) # Temporarily commented out
 
-        print("CLI: Orchestrated process has terminated.")
+        # Keep the Telegram bot running indefinitely for testing
+        print("CLI: Telegram bot running in isolation. Send messages to test reception.")
+        await application.updater.idle() # This will block until application.stop() is called
+
+        # print("CLI: Orchestrated process has terminated.") # Temporarily commented out
         # Send goodbye message
-        await sender("Orchestrated process has terminated. Goodbye!")
+        await sender("Orchestrated process has terminated. Goodbye!") # Temporarily modified message
 
     except asyncio.CancelledError:
         print("CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown.")
         # Ensure all components are shut down
-        if orchestrator.is_alive():
-            print("CLI: Orchestrator process still alive, shutting down.")
-            await orchestrator.shutdown()
-        if output_task and not output_task.done():
-            print("CLI: Output task still running, cancelling.")
-            output_task.cancel()
-            try:
-                await output_task
-            except asyncio.CancelledError:
-                pass
-        if telegram_polling_task and not telegram_polling_task.done():
-            print("CLI: Telegram polling task still running, cancelling.")
-            telegram_polling_task.cancel()
-            try:
-                await telegram_polling_task
-            except asyncio.CancelledError:
-                pass
+        # if orchestrator.is_alive(): # Temporarily commented out
+        #     print("CLI: Orchestrator process still alive, shutting down.") # Temporarily commented out
+        #     await orchestrator.shutdown() # Temporarily commented out
+        # if output_task and not output_task.done(): # Temporarily commented out
+        #     print("CLI: Output task still running, cancelling.") # Temporarily commented out
+        #     output_task.cancel() # Temporarily commented out
+        #     try: # Temporarily commented out
+        #         await output_task # Temporarily commented out
+        #     except asyncio.CancelledError: # Temporarily commented out
+        #         pass # Temporarily commented out
+        # if telegram_polling_task and not telegram_polling_task.done(): # Temporarily commented out
+        #     print("CLI: Telegram polling task still running, cancelling.") # Temporarily commented out
+        #     telegram_polling_task.cancel() # Temporarily commented out
+        #     try: # Temporarily commented out
+        #         await telegram_polling_task # Temporarily commented out
+        #     except asyncio.CancelledError: # Temporarily commented out
+        #         pass # Temporarily commented out
         # Send goodbye on interrupt
         await sender("Gramit application was interrupted. Goodbye!")
     except Exception as e:

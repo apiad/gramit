@@ -63,8 +63,8 @@ This phase connects Gramit to Telegram and wires all the components together int
 *   [x] **Documentation:**
     *   [x] Document the application's configuration requirements (`GRAMIT_TELEGRAM_TOKEN`, `--chat-id`).
     *   [x] Create an initial `README.md` with basic setup and usage instructions.
-*   [ ] **Manual Verification:**
-    *   [ ] Run the application end-to-end with a simple command (e.g., `ping 8.8.8.8`) to confirm the `line-mode` integration is working.
+*   [x] **Manual Verification:**
+    *   [x] Run the application end-to-end with a simple command (e.g., `ping 8.8.8.8`) to confirm the `line-mode` integration is working.
 
 ## Phase 5: The Output Router (TUI Mode)
 

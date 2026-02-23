@@ -8,7 +8,7 @@ This design adheres to the following principles:
 
 *   **Security First:** The system is locked down by default. It requires explicit user authorization and uses secure methods for handling credentials.
 *   **Zero External Dependencies:** The application is a pure Python tool and does not require external binaries like `tmux`. This enhances portability and reduces complexity.
-*   **Remote-First Interaction:** The primary interface is Telegram. Simultaneous local terminal interaction is not supported, which eliminates input race conditions and simplifies the design.
+*   **Hybrid Interaction:** The primary interface is Telegram, but Gramit also supports full, simultaneous local terminal interaction in "Mirror Mode" (default). This allows a user to seamlessly switch between local and remote control.
 *   **External Output Streaming:** For complex applications, Gramit can "tail" a clean log file instead of capturing raw terminal output, providing a robust way to bridge interactive TUI apps.
 
 ## 2. Core Architecture

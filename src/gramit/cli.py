@@ -58,6 +58,13 @@ async def main():
         help="Path to a file to tail for output instead of PTY stdout.",
     )
     parser.add_argument(
+        "--no-mirror",
+        action="store_false",
+        dest="mirror",
+        help="Disable mirroring the orchestrated process output to the local terminal.",
+    )
+    parser.set_defaults(mirror=True)
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="The command to execute.",
@@ -120,14 +127,19 @@ async def main():
         sender=sender,
         mode="line",
         output_stream=args.output_stream,
+        mirror=args.mirror,
     )
 
     # --- Application Setup ---
     application = Application.builder().token(token).build()
+    # Route regular text to handle_message
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message)
     )
-    application.add_handler(CommandHandler("quit", input_router.handle_command))
+    # Route ALL commands to handle_command
+    application.add_handler(
+        MessageHandler(filters.COMMAND, input_router.handle_command)
+    )
     application.add_error_handler(error_handler)
 
     try:
@@ -145,7 +157,7 @@ async def main():
             initial_message = (
                 f"Gramit started for command: `{' '.join(args.command)}`\n"
                 f"Broadcasting to chat ID: `{args.chat_id}`\n"
-                "Send `/quit` to terminate the process."
+                "Send `/help` for key shortcuts or `/quit` to terminate."
             )
             await sender(initial_message)
 

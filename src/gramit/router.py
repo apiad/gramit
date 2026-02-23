@@ -83,6 +83,7 @@ class OutputRouter:
         debounce_interval: float = 0.5,
         max_buffer_lines: int = 50,
         output_stream: Optional[str] = None,
+        mirror: bool = True,
     ):
         self._orchestrator = orchestrator
         self._sender = sender
@@ -92,24 +93,34 @@ class OutputRouter:
             debounce_interval, self._flush_buffer, max_buffer_size=max_buffer_lines
         )
         self._output_stream = output_stream
+        self._mirror = mirror
         self._tailer: Optional[FileTailer] = None
+        self._old_settings = None
 
     async def start(self):
         """
         Starts the main loop to read and route output.
         """
         # Prepare terminal for mirroring
-        self._prepare_terminal()
+        if self._mirror:
+            self._prepare_terminal()
 
-        # Always drain the PTY to mirror to local terminal and prevent blocking.
+        # Always drain the PTY to mirror to local terminal (if enabled) and prevent blocking.
         pty_drainer = asyncio.create_task(self._drain_pty())
+        
+        # Local input handler
+        local_input_handler = None
+        if self._mirror:
+            local_input_handler = asyncio.create_task(self._handle_local_input())
 
         if self._output_stream:
             self._tailer = FileTailer(self._output_stream)
             try:
+                # FileTailer.read_new yields chunks of text
                 async for data in self._tailer.read_new(self._orchestrator):
                     await self._process_line_mode(data)
-                    # Push to debouncer
+                    # For file mode, we push every new chunk to the debouncer
+                    # so the user sees it after debounce_interval
                     if self._buffer:
                         await self._debouncer.push(self._buffer)
                         self._buffer = ""
@@ -132,9 +143,10 @@ class OutputRouter:
                         continue
                     
                     # Mirror to local
-                    import sys
-                    sys.stdout.write(data)
-                    sys.stdout.flush()
+                    if self._mirror:
+                        import sys
+                        sys.stdout.write(data)
+                        sys.stdout.flush()
 
                     await self._process_line_mode(data)
                     if self._buffer:
@@ -146,13 +158,14 @@ class OutputRouter:
                 except Exception:
                     break
         
-        # Cleanup drainer
-        if not pty_drainer.done():
-            pty_drainer.cancel()
-            try:
-                await pty_drainer
-            except asyncio.CancelledError:
-                pass
+        # Cleanup tasks
+        for task in [pty_drainer, local_input_handler]:
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         # Final flushes for any remaining data
         if self._buffer:
@@ -161,24 +174,42 @@ class OutputRouter:
         await self._debouncer.flush()
         
         # Restore terminal state in case it was a TUI
-        self._restore_terminal()
+        if self._mirror:
+            self._restore_terminal()
 
     def _prepare_terminal(self):
         """
-        Clears the terminal and moves cursor to home before mirroring.
+        Clears the terminal and sets it to raw mode for local input.
         """
         import sys
+        import tty
+        import termios
+        
+        # Save original attributes for restoration
+        try:
+            self._old_settings = termios.tcgetattr(sys.stdin.fileno())
+            tty.setraw(sys.stdin.fileno())
+        except Exception:
+            self._old_settings = None
+
         # \x1b[2J: clear screen, \x1b[H: home cursor
         sys.stdout.write("\x1b[2J\x1b[H")
         sys.stdout.flush()
 
     def _restore_terminal(self):
         """
-        Sends ANSI escape sequences to disable mouse tracking, 
-        exit alternate screen buffer, and clear the screen.
-        Also flushes stdin to prevent leaked input (like mouse events).
+        Restores the terminal to its original state.
         """
         import sys
+        import termios
+        
+        # Restore raw mode first
+        if self._old_settings:
+            try:
+                termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._old_settings)
+            except Exception:
+                pass
+
         # Disable various mouse tracking modes
         # ?1000l: VT200, ?1002l: Button event, ?1003l: Any event, ?1006l: SGR
         # ?1049l: Exit alternate screen
@@ -194,8 +225,6 @@ class OutputRouter:
         time.sleep(0.1)
 
         # Flush stdin to get rid of any mouse movement/click sequences 
-        # that the terminal sent while gramit was running.
-        import termios
         try:
             termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
         except Exception:
@@ -210,7 +239,8 @@ class OutputRouter:
 
     async def _drain_pty(self):
         """
-        Mirror PTY to local stdout. Only used if output_stream is active.
+        Drain PTY and mirror to local stdout if enabled.
+        Only runs if output_stream is active (as the main loop handles standard mode).
         """
         if not self._output_stream:
             return
@@ -224,9 +254,29 @@ class OutputRouter:
                         break
                     await asyncio.sleep(0.05)
                     continue
-                sys.stdout.write(data)
-                sys.stdout.flush()
+                
+                if self._mirror:
+                    sys.stdout.write(data)
+                    sys.stdout.flush()
             except (asyncio.CancelledError, OSError, EOFError):
+                break
+            except Exception:
+                break
+
+    async def _handle_local_input(self):
+        """
+        Reads from local stdin and writes to the orchestrator.
+        """
+        import sys
+        loop = asyncio.get_running_loop()
+        while self._orchestrator.is_alive():
+            try:
+                # Read 1 byte at a time in raw mode
+                char = await loop.run_in_executor(None, sys.stdin.read, 1)
+                if not char:
+                    break
+                await self._orchestrator.write(char)
+            except asyncio.CancelledError:
                 break
             except Exception:
                 break
@@ -251,6 +301,8 @@ class OutputRouter:
         # Telegram message limit is 4096 characters
         MAX_TELEGRAM_MSG = 4096
         if len(full_message) > MAX_TELEGRAM_MSG:
+            # Trim the message if it's too long
+            # Keep the beginning and the end, with a warning in the middle
             half_limit = (MAX_TELEGRAM_MSG // 2) - 50
             full_message = (
                 full_message[:half_limit]

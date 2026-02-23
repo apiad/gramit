@@ -109,6 +109,7 @@ async def main():
     orchestrator = Orchestrator(args.command)
 
     bot = Bot(token)
+
     def sender(msg):
         return bot.send_message(chat_id=args.chat_id, text=msg)
 

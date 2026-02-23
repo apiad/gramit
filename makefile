@@ -50,10 +50,10 @@ release:
 	@echo "Bumping version from $(CURRENT_VERSION) to $(NEW_VERSION)..."
 
 	@echo Replace version in pyproject.toml
-	@sed -i.bak "s/version = \"$(CURRENT_VERSION)\"/version = \"$(NEW_VERSION)\"/" pyproject.toml
+	@sed -i.bak "s/^version = \"$(CURRENT_VERSION)\"/version = \"$(NEW_VERSION)\"/" pyproject.toml
 
 	@echo Replace version in src/gramit/__init__.py
-	@sed -i.bak "s/__version__ = \"$(CURRENT_VERSION)\"/__version__ = \"$(NEW_VERSION)\"/" src/gramit/__init__.py
+	@sed -i.bak "s/^__version__ = \"$(CURRENT_VERSION)\"/__version__ = \"$(NEW_VERSION)\"/" src/gramit/__init__.py
 
 	@echo Remove backup files
 	@rm pyproject.toml.bak src/gramit/__init__.py.bak

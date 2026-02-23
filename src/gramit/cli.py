@@ -10,6 +10,13 @@ from .router import OutputRouter
 from .telegram import InputRouter
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a telegram message to notify the developer."""
+    print(f"Error: {context.error}")
+    if update:
+        print(f"Update: {update}")
+
+
 async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """A simple handler that prints information about any message it receives."""
     if not update.message:
@@ -67,6 +74,7 @@ async def main():
         print("Send any message to the bot to see your Chat ID.")
         application = Application.builder().token(token).build()
         application.add_handler(MessageHandler(filters.TEXT, _register_handler))
+        application.add_error_handler(error_handler) # Add error handler
         async with application:
             await application.initialize()
             await application.start()
@@ -100,15 +108,18 @@ async def main():
 
     # --- Application Setup ---
     application = Application.builder().token(token).build()
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message)
-    )
+    # Catch all messages for debugging
+    application.add_handler(MessageHandler(filters.ALL, input_router.handle_message))
     application.add_handler(CommandHandler("quit", input_router.handle_command))
+    application.add_error_handler(error_handler) # Add error handler
 
     # --- Main Execution Loop ---
     async with application:
+        print("CLI: Initializing Telegram application...")
         await application.initialize()
+        print("CLI: Starting Telegram application...")
         await application.start()
+        print("CLI: Telegram application started.")
 
         # Send initial message
         initial_message = (
@@ -119,8 +130,8 @@ async def main():
         await sender(initial_message)
 
         proc_pid = await orchestrator.start()
-        print(f"Started process {proc_pid} with command: {' '.join(args.command)}")
-        print(f"Broadcasting to Telegram chat ID: {args.chat_id}")
+        print(f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}")
+        print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}")
 
         output_task = asyncio.create_task(output_router.start())
 
@@ -128,10 +139,12 @@ async def main():
         # terminates and all its output has been processed.
         await output_task
 
-        print("Orchestrated process has terminated.")
+        print("CLI: Orchestrated process has terminated.")
         # Send goodbye message
         await sender("Orchestrated process has terminated. Goodbye!")
+        print("CLI: Stopping Telegram application...")
         await application.stop()
+        print("CLI: Telegram application stopped.")
 
 
 def run():

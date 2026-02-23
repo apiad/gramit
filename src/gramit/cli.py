@@ -98,30 +98,30 @@ async def main():
     output_task = None
     shutdown_event = asyncio.Event() # New: Event to signal shutdown
 
+    # --- Component Setup ---
+    orchestrator = Orchestrator(args.command)
+
+    bot = Bot(token)
+    sender = lambda msg: bot.send_message(chat_id=args.chat_id, text=msg)
+
+    input_router = InputRouter(
+        orchestrator=orchestrator,
+        authorized_chat_ids=[int(args.chat_id)],
+        shutdown_event=shutdown_event, # New: Pass the shutdown event
+    )
+    output_router = OutputRouter(
+        orchestrator=orchestrator,
+        sender=sender,
+        mode="line",
+    )
+
+    # --- Application Setup ---
+    application = Application.builder().token(token).build()
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message))
+    application.add_handler(CommandHandler("quit", input_router.handle_command))
+    application.add_error_handler(error_handler)
+
     try:
-        # --- Component Setup ---
-        orchestrator = Orchestrator(args.command)
-
-        bot = Bot(token)
-        sender = lambda msg: bot.send_message(chat_id=args.chat_id, text=msg)
-
-        input_router = InputRouter(
-            orchestrator=orchestrator,
-            authorized_chat_ids=[int(args.chat_id)],
-            shutdown_event=shutdown_event, # New: Pass the shutdown event
-        )
-        output_router = OutputRouter(
-            orchestrator=orchestrator,
-            sender=sender,
-            mode="line",
-        )
-
-        # --- Application Setup ---
-        application = Application.builder().token(token).build()
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message))
-        application.add_handler(CommandHandler("quit", input_router.handle_command))
-        application.add_error_handler(error_handler)
-
         async with application:
             print("CLI: Initializing Telegram application...")
             await application.start()
@@ -148,40 +148,36 @@ async def main():
 
             output_task = asyncio.create_task(output_router.start())
             
-            # Run both tasks concurrently. If one finishes, the other should be cancelled.
-            # The shutdown_event.wait() keeps the event loop alive for the Telegram bot
-            # until a shutdown is explicitly requested (e.g., via /quit command).
-            await asyncio.gather(output_task, shutdown_event.wait())
+            try:
+                await asyncio.gather(output_task, shutdown_event.wait())
+            except asyncio.CancelledError:
+                print("CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown.")
+                # Ensure orchestrator and output_task are shut down
+                if orchestrator.is_alive():
+                    print("CLI: Orchestrator process still alive, shutting down.")
+                    await orchestrator.shutdown()
+                if output_task and not output_task.done():
+                    print("CLI: Output task still running, cancelling.")
+                    output_task.cancel()
+                    try:
+                        await output_task
+                    except asyncio.CancelledError:
+                        pass
+                # The async with application block's __aexit__ will handle Telegram app shutdown.
+                await sender("Gramit application was interrupted. Goodbye!")
+                raise # Re-raise to allow async with to handle it
 
             print("CLI: Orchestrated process has terminated.")
-            # Send goodbye message
             await sender("Orchestrated process has terminated. Goodbye!")
 
-    except asyncio.CancelledError:
-        print("CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown.")
-        # Ensure all components are shut down
-        if orchestrator.is_alive():
-            print("CLI: Orchestrator process still alive, shutting down.")
-            await orchestrator.shutdown()
-        if output_task and not output_task.done():
-            print("CLI: Output task still running, cancelling.")
-            output_task.cancel()
-            try:
-                await output_task
-            except asyncio.CancelledError:
-                pass
-        # Signal the Telegram application to stop gracefully by setting the event
-        shutdown_event.set()
-        # Send goodbye on interrupt
-        await sender("Gramit application was interrupted. Goodbye!")
-    except Exception as e:
+    except Exception as e: # Catch any other exceptions
         print(f"CLI: An unexpected error occurred: {e}")
-        # Send error message to Telegram
         await sender(f"Gramit encountered an error: {e}. Shutting down.")
     finally:
         print("CLI: Stopping Telegram application...")
-        # The async with block handles application.stop() and application.updater.stop()
-        # No need to explicitly call them here.
+        # This finally block is for the main() function.
+        # The async with application's __aexit__ handles Telegram app shutdown.
+        # We don't need to explicitly call application.stop() here.
 
 
 def run():

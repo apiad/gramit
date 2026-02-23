@@ -92,6 +92,8 @@ This final phase polishes the project for release.
     *   [x] Finalize `pyproject.toml` for packaging, defining the console script entry point for `gramit`.
     *   [x] Implement terminal size inheritance and dynamic resizing.
     *   [x] Robust terminal cleanup and restoration on exit.
+    *   [x] Implement key shortcuts and modifier combinations (/enter, /ca, /c/sa, etc.).
+    *   [x] Implement `--no-mirror` mode for silent local operation.
 *   [x] **Documentation:**
     *   [x] Thoroughly update `README.md` with complete installation instructions, advanced usage, examples, and security warnings.
     *   [x] Ensure all public modules and functions have high-quality docstrings.

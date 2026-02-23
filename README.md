@@ -29,6 +29,16 @@ Gramit offers two powerful ways to bridge your terminal output to Telegram:
 1.  **Standard Mode (IO):** Directly captures the `stdout` of your process via a Pseudo-Terminal (PTY). Perfect for line-based apps and scripts. Gramit intelligently aggregates and debounces output to ensure you don't get spammed with dozens of tiny messages.
 2.  **External Stream Mode (`-o` / `--output-stream`):** For complex TUI applications where raw terminal output is "noisy" (filled with borders, colors, and ANSI codes), you can instruct Gramit to "tail" a clean side-log file instead.
 
+### ⌨️ Key Shortcuts & Modifiers
+Interact with TUIs effortlessly using Telegram commands:
+-   **Special Keys:** `/enter`, `/esc`, `/t` (Tab), `/b` (Backspace), `/d` (Delete).
+-   **Arrow Keys:** `/up`, `/down`, `/left`, `/right`.
+-   **Modifiers:**
+    -   `/c<key>` for Control (e.g., `/ca` for `Ctrl+A`).
+    -   `/a<key>` for Alt/Meta (e.g., `/ax` for `Alt+X`).
+    -   `/s<key>` for Shift.
+-   **Combinations:** `/c/sa` for `Ctrl+Shift+A`, `/a/c/up` for `Alt+Ctrl+Up`, etc.
+
 ### 🖥️ Native Terminal Experience
 
 Gramit isn't just a blind pipe; it respects your terminal:

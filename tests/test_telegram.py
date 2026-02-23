@@ -73,6 +73,42 @@ async def test_input_router_quit_command():
 
 
 @pytest.mark.asyncio
+async def test_input_router_key_shortcuts():
+    """
+    Tests that the InputRouter correctly parses and sends key shortcuts.
+    """
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.write = AsyncMock()
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)
+
+    router = InputRouter(
+        orchestrator=mock_orchestrator,
+        authorized_chat_ids=[12345],
+        shutdown_event=mock_shutdown_event,
+    )
+
+    # Test /enter
+    await router.handle_command(MockUpdate(text="/enter", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\r")
+
+    # Test /ca (Ctrl+A)
+    await router.handle_command(MockUpdate(text="/ca", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x01")
+
+    # Test /c/sa (Ctrl+Shift+A -> Ctrl+A in most terminals)
+    await router.handle_command(MockUpdate(text="/c/sa", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x01")
+
+    # Test /ax (Alt+x)
+    await router.handle_command(MockUpdate(text="/ax", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x1bx")
+
+    # Test /up
+    await router.handle_command(MockUpdate(text="/up", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x1b[A")
+
+
+@pytest.mark.asyncio
 async def test_input_router_ignores_unauthorized_message():
     """
     Tests that the InputRouter ignores messages from unauthorized chat IDs.

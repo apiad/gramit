@@ -5,14 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.0]
+
+### Added
+- **No-Mirror Mode:** Added `--no-mirror` flag to silence local terminal output while bridging to Telegram. This is useful for background operations or when the host terminal shouldn't be disturbed.
+
+## [v0.3.1]
+
+### Security
+- **Credential Leak Fix:** Removed an accidental Telegram token from the `README.md`.
+- **Minor Fixes:** General codebase stabilization.
+
 ## [v0.3.0]
 
-Current version.
+### Changed
+- **Version Bump:** Synchronized project versioning for initial beta stability.
 
 ## [v0.2.0]
 
 ### Added
 - **External Output Streaming:** New `-o` / `--output-stream` option to "tail" a file for output instead of capturing PTY stdout. This allows clean bridging of complex TUI applications.
+- **Key Shortcuts & Modifiers:** Support for sending special keys (`/enter`, `/esc`, `/up`, etc.) and modifier combinations (`/ca` for Ctrl+A, `/c/sa` for Ctrl+Shift+A) from Telegram.
 - **Terminal Size Inheritance:** Child processes now inherit the terminal size of the host on startup.
 - **Dynamic Resizing:** Added support for propagating `SIGWINCH` signals, ensuring TUI applications resize correctly with the terminal window.
 - **Local Mirroring:** Gramit now mirrors the child process output to the local terminal, allowing for direct monitoring.

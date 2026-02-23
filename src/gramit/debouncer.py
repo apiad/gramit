@@ -14,6 +14,7 @@ class AsyncDebouncer:
         self,
         interval: float,
         flush_callback: Callable[[List[T]], Coroutine[Any, Any, None]],
+        max_buffer_size: int = 100,
     ):
         """
         Initializes the AsyncDebouncer.
@@ -21,22 +22,30 @@ class AsyncDebouncer:
         Args:
             interval: The time in seconds to wait for inactivity before flushing.
             flush_callback: An async function to call with the batch of items.
+            max_buffer_size: Maximum number of items to buffer before forcing a flush.
         """
         self._interval = interval
         self._flush_callback = flush_callback
+        self._max_buffer_size = max_buffer_size
         self._buffer: List[T] = []
         self._task: asyncio.Task | None = None
 
     async def push(self, item: T):
         """
         Pushes an item into the debouncer buffer and resets the flush timer.
+        If the buffer reaches max_buffer_size, it flushes immediately.
         """
         if self._task:
             self._task.cancel()
 
         self._buffer.append(item)
-        # Schedule a new flush task
-        self._task = asyncio.create_task(self._wait_and_flush())
+
+        if len(self._buffer) >= self._max_buffer_size:
+            # Force immediate flush if buffer is full
+            await self.flush()
+        else:
+            # Schedule a new flush task
+            self._task = asyncio.create_task(self._wait_and_flush())
 
     async def flush(self):
         """

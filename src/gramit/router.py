@@ -17,12 +17,15 @@ class OutputRouter:
         sender: Callable[[str], Coroutine[Any, Any, None]],
         mode: str = "line",
         debounce_interval: float = 0.5,
+        max_buffer_lines: int = 50,
     ):
         self._orchestrator = orchestrator
         self._sender = sender
         self._mode = mode
         self._buffer = ""
-        self._debouncer = AsyncDebouncer(debounce_interval, self._flush_buffer)
+        self._debouncer = AsyncDebouncer(
+            debounce_interval, self._flush_buffer, max_buffer_size=max_buffer_lines
+        )
 
     async def start(self):
         """
@@ -68,4 +71,17 @@ class OutputRouter:
             return
 
         full_message = "\n".join(items)
+
+        # Telegram message limit is 4096 characters
+        MAX_TELEGRAM_MSG = 4096
+        if len(full_message) > MAX_TELEGRAM_MSG:
+            # Trim the message if it's too long
+            # Keep the beginning and the end, with a warning in the middle
+            half_limit = (MAX_TELEGRAM_MSG // 2) - 50
+            full_message = (
+                full_message[:half_limit]
+                + "\n\n... [Output trimmed due to size] ...\n\n"
+                + full_message[-half_limit:]
+            )
+
         await self._sender(full_message)

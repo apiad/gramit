@@ -28,3 +28,25 @@ async def test_debouncer_collects_and_flushes():
 
     # Now the callback should have been called exactly once with all items
     flush_callback.assert_awaited_once_with(["item1", "item2", "item3"])
+
+
+@pytest.mark.asyncio
+async def test_debouncer_flushes_when_buffer_full():
+    """
+    Tests that the debouncer flushes immediately when the max_buffer_size is reached.
+    """
+    flush_callback = AsyncMock()
+    debouncer = AsyncDebouncer(
+        interval=1.0, flush_callback=flush_callback, max_buffer_size=3
+    )
+
+    # Push items up to the limit
+    await debouncer.push("item1")
+    await debouncer.push("item2")
+    flush_callback.assert_not_called()
+
+    # The 3rd item should trigger an immediate flush
+    await debouncer.push("item3")
+
+    # Callback should have been called immediately without waiting for interval
+    flush_callback.assert_awaited_once_with(["item1", "item2", "item3"])

@@ -4,6 +4,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 
+> [!CAUTION]
+> **SECURITY WARNING: REMOTE ACCESS RISK**
+>
+> Gramit provides a bridge between your local machine and a remote Telegram interface. **This allows remote command execution.**
+>
+> If you run a shell (like `/bin/bash` or `cmd.exe`) or any interactive tool through Gramit, anyone with access to your Telegram bot (and whose Chat ID is authorized) has **full control over your machine**.
+>
+> **USE ONLY IF YOU ARE HIGHLY SECURITY-AWARE.**
+> - Never share your `GRAMIT_TELEGRAM_TOKEN`.
+> - Ensure your `GRAMIT_CHAT_ID` is correctly configured to *your* ID only.
+> - Be extremely cautious when bridging shells or administrative tools.
+
 Gramit bridges a local CLI application with a remote Telegram interface. It allows you to run any long-running command on your machine and interact with it from anywhere using Telegram. While designed to be generic for any CLI, it's particularly useful for interactive AI CLIs like **Gemini CLI**, **Claude Code**, or similar tools where you want to maintain a persistent session and interact remotely.
 
 ## How it Works

@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.1.2]
 
-- First release!
+### Security
+- Implemented rate-limiting and output trimming in `OutputRouter` and `AsyncDebouncer` to prevent memory exhaustion and respect Telegram's message size limits.
+- Restricted local `.env` file permissions to owner-only (`600`) to protect sensitive tokens.
+- Added a prominent security warning to `README.md` regarding the risks of remote command execution.
+
+### Fixed
+- Corrected a missing f-string in `cli.py` logging.
 
 ## [v0.0.1]
 

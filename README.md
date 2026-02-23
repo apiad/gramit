@@ -10,24 +10,37 @@ Gramit bridges a local CLI application with a remote Telegram interface. You can
     - Talk to the [@BotFather](https://t.me/BotFather) on Telegram.
     - Create a new bot and copy the token it gives you.
 
-3.  **Set Environment Variable**
+3.  **Set Environment Variables**
     - Create a file named `.env` in the project root.
-    - Add the following line to it:
+    - Add the following line to it, replacing `YOUR_TOKEN_HERE` with the token you just got:
       ```
       GRAMIT_TELEGRAM_TOKEN="YOUR_TOKEN_HERE"
       ```
+    - You can also optionally add your Chat ID to this file (see step 4):
+      ```
+      GRAMIT_CHAT_ID="YOUR_CHAT_ID_HERE"
+      ```
 
 4.  **Find Your Chat ID**
-    - Talk to a bot like [@userinfobot](https://t.me/userinfobot) to get your numerical Telegram user ID. This will be your Chat ID.
+    - The easiest way to find your chat ID is to use Gramit's built-in registration mode. Run the following command:
+      ```sh
+      uv run python -m gramit.cli --register
+      ```
+    - Now, send any message to your bot on Telegram. Gramit will print your Chat ID to the console and also reply with it.
+    - Once you have your ID, you can stop the command (`Ctrl+C`).
 
 ## Usage
 
-Run `gramit` with your desired chat ID and the command you want to execute.
+Run `gramit` with your command. If you have not set `GRAMIT_CHAT_ID` in your `.env` file, you must also provide the `--chat-id` argument.
 
+**Basic Example:**
 ```sh
+# If GRAMIT_CHAT_ID is set in .env
+uv run python -m gramit.cli ping 8.8.8.8
+
+# If GRAMIT_CHAT_ID is NOT set
 uv run python -m gramit.cli --chat-id YOUR_CHAT_ID ping 8.8.8.8
 ```
 
-- Replace `YOUR_CHAT_ID` with the ID you found in the setup steps.
 - Any text you send to your bot on Telegram will be piped to the `stdin` of the running command.
 - Any `stdout` from the command will be sent back to you as a Telegram message.

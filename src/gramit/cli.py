@@ -2,12 +2,30 @@ import os
 import asyncio
 import argparse
 from dotenv import load_dotenv
-from telegram import Bot
-from telegram.ext import Application, MessageHandler, filters
+from telegram import Update, Bot
+from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 from .orchestrator import Orchestrator
 from .router import OutputRouter
 from .telegram import InputRouter
+
+
+async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """A simple handler that prints information about any message it receives."""
+    if not update.message:
+        return
+
+    chat_id = update.message.chat.id
+    username = update.message.from_user.username or "N/A"
+    text = update.message.text or ""
+
+    print("--- Message Received ---")
+    print(f"  Chat ID: {chat_id}")
+    print(f"  From:    @{username}")
+    print(f"  Message: {text}")
+    print("------------------------\n")
+    
+    await update.message.reply_text(f"Your Chat ID is: {chat_id}")
 
 
 async def main():
@@ -22,8 +40,13 @@ async def main():
     parser.add_argument(
         "--chat-id",
         type=int,
-        required=True,
-        help="The authorized Telegram chat ID to interact with.",
+        default=os.getenv("GRAMIT_CHAT_ID"),
+        help="The authorized Telegram chat ID. Can also be set via GRAMIT_CHAT_ID env var.",
+    )
+    parser.add_argument(
+        "--register",
+        action="store_true",
+        help="Run in registration mode to find a chat ID.",
     )
     parser.add_argument(
         "command",
@@ -34,13 +57,30 @@ async def main():
     parser.add_argument("--line-mode", action="store_true", help="Enable line mode.")
 
     args = parser.parse_args()
-
-    if not args.command:
-        parser.error("the following arguments are required: command")
-
     token = os.getenv("GRAMIT_TELEGRAM_TOKEN")
     if not token:
         raise ValueError("GRAMIT_TELEGRAM_TOKEN environment variable not set.")
+
+    # --- Registration Mode ---
+    if args.register:
+        print("Starting in registration mode...")
+        print("Send any message to the bot to see your Chat ID.")
+        application = Application.builder().token(token).build()
+        application.add_handler(MessageHandler(filters.TEXT, _register_handler))
+        async with application:
+            await application.initialize()
+            await application.start()
+            await application.updater.start_polling()
+            # Keep it running until manually stopped
+            while True:
+                await asyncio.sleep(3600)
+        return
+
+    # --- Main Gramit Logic ---
+    if not args.chat_id:
+        parser.error("the following arguments are required: --chat-id (or GRAMIT_CHAT_ID env var)")
+    if not args.command:
+        parser.error("the following arguments are required: command")
 
     # --- Component Setup ---
     orchestrator = Orchestrator(args.command)
@@ -50,7 +90,7 @@ async def main():
 
     input_router = InputRouter(
         orchestrator=orchestrator,
-        authorized_chat_ids=[args.chat_id],
+        authorized_chat_ids=[int(args.chat_id)],
     )
     output_router = OutputRouter(
         orchestrator=orchestrator,

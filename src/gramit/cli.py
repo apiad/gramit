@@ -114,11 +114,13 @@ async def main():
     application.add_error_handler(error_handler) # Add error handler
 
     # --- Main Execution Loop ---
-    async with application:
+    output_task = None
+    try:
         print("CLI: Initializing Telegram application...")
         await application.initialize()
-        print("CLI: Starting Telegram application...")
-        await application.start()
+        print("CLI: Starting Telegram application (polling)...")
+        # Use start_polling for explicit polling
+        await application.updater.start_polling()
         print("CLI: Telegram application started.")
 
         # Send initial message
@@ -135,15 +137,37 @@ async def main():
 
         output_task = asyncio.create_task(output_router.start())
 
-        # Wait for the output router to finish, which happens when the process
-        # terminates and all its output has been processed.
-        await output_task
+        # Keep the main task alive until orchestrator or Telegram app stops
+        # We need to wait for the output_task to finish, which implies orchestrator is done
+        await output_task # This will complete when orchestrator process ends
 
         print("CLI: Orchestrated process has terminated.")
         # Send goodbye message
         await sender("Orchestrated process has terminated. Goodbye!")
+
+    except asyncio.CancelledError:
+        print("CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown.")
+        # Ensure all components are shut down
+        if orchestrator.is_alive():
+            print("CLI: Orchestrator process still alive, shutting down.")
+            await orchestrator.shutdown()
+        if output_task and not output_task.done():
+            print("CLI: Output task still running, cancelling.")
+            output_task.cancel()
+            try:
+                await output_task
+            except asyncio.CancelledError:
+                pass
+        # Send goodbye on interrupt
+        await sender("Gramit application was interrupted. Goodbye!")
+    except Exception as e:
+        print(f"CLI: An unexpected error occurred: {e}")
+        # Send error message to Telegram
+        await sender(f"Gramit encountered an error: {e}. Shutting down.")
+    finally:
         print("CLI: Stopping Telegram application...")
-        await application.stop()
+        if application.running: # Only stop if it's actually running
+            await application.stop()
         print("CLI: Telegram application stopped.")
 
 

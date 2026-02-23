@@ -35,10 +35,10 @@ class Orchestrator:
         """
         if self._master_fd is None:
             return ""
-        
+
         loop = asyncio.get_running_loop()
         data = await loop.run_in_executor(None, os.read, self._master_fd, max_bytes)
-        return data.decode('utf-8', errors='replace')
+        return data.decode("utf-8", errors="replace")
 
     async def write(self, data: str):
         """
@@ -48,7 +48,7 @@ class Orchestrator:
             data: The string data to write.
         """
         if self._master_fd is not None:
-            encoded_data = data.encode('utf-8')
+            encoded_data = data.encode("utf-8")
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, os.write, self._master_fd, encoded_data)
 

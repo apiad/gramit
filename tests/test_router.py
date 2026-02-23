@@ -68,4 +68,3 @@ async def test_output_router_handles_quick_exit():
 
     # The final flush should have been called
     mock_sender.assert_awaited_once_with("error: command not found")
-

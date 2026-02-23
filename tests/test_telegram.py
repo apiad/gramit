@@ -1,8 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 import pytest
-import asyncio # New import
+import asyncio  # New import
 
 from gramit.telegram import InputRouter
+
 
 # Mocking the telegram bot Update and Message classes
 class MockMessage:
@@ -10,6 +11,7 @@ class MockMessage:
         self.text = text
         self.chat = MagicMock()
         self.chat.id = chat_id
+
 
 class MockUpdate:
     def __init__(self, text: str, chat_id: int):
@@ -24,12 +26,12 @@ async def test_input_router_handles_authorized_message():
     """
     mock_orchestrator = MagicMock()
     mock_orchestrator.write = AsyncMock()
-    mock_shutdown_event = AsyncMock(spec=asyncio.Event) # New mock
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)  # New mock
 
     router = InputRouter(
         orchestrator=mock_orchestrator,
         authorized_chat_ids=[12345],
-        shutdown_event=mock_shutdown_event # Pass the mock event
+        shutdown_event=mock_shutdown_event,  # Pass the mock event
     )
 
     update = MockUpdate(text="ls -l", chat_id=12345)
@@ -37,7 +39,7 @@ async def test_input_router_handles_authorized_message():
 
     # Expect the text to be written to the orchestrator with a newline
     mock_orchestrator.write.assert_awaited_once_with("ls -l\n")
-    mock_shutdown_event.set.assert_not_called() # Should not be called
+    mock_shutdown_event.set.assert_not_called()  # Should not be called
 
 
 @pytest.mark.asyncio
@@ -51,12 +53,12 @@ async def test_input_router_quit_command():
 
     mock_context = MagicMock()
     mock_context.bot.send_message = AsyncMock()
-    mock_shutdown_event = AsyncMock(spec=asyncio.Event) # New mock
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)  # New mock
 
     router = InputRouter(
         orchestrator=mock_orchestrator,
         authorized_chat_ids=[12345],
-        shutdown_event=mock_shutdown_event # Pass the mock event
+        shutdown_event=mock_shutdown_event,  # Pass the mock event
     )
 
     update = MockUpdate(text="/quit", chat_id=12345)
@@ -66,7 +68,7 @@ async def test_input_router_quit_command():
     mock_context.bot.send_message.assert_awaited_once_with(
         chat_id=12345, text="Shutting down the orchestrated process."
     )
-    mock_shutdown_event.set.assert_called_once() # Assert set was called
+    mock_shutdown_event.set.assert_called_once()  # Assert set was called
 
 
 @pytest.mark.asyncio
@@ -76,12 +78,12 @@ async def test_input_router_ignores_unauthorized_message():
     """
     mock_orchestrator = MagicMock()
     mock_orchestrator.write = AsyncMock()
-    mock_shutdown_event = AsyncMock(spec=asyncio.Event) # New mock
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)  # New mock
 
     router = InputRouter(
         orchestrator=mock_orchestrator,
         authorized_chat_ids=[12345],  # Authorized user
-        shutdown_event=mock_shutdown_event # Pass the mock event
+        shutdown_event=mock_shutdown_event,  # Pass the mock event
     )
 
     # Message from a different user
@@ -89,5 +91,4 @@ async def test_input_router_ignores_unauthorized_message():
     await router.handle_message(update, context=None)
 
     mock_orchestrator.write.assert_not_awaited()
-    mock_shutdown_event.set.assert_not_called() # Should not be called
-
+    mock_shutdown_event.set.assert_not_called()  # Should not be called

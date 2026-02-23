@@ -3,7 +3,13 @@ import asyncio
 import argparse
 from dotenv import load_dotenv
 from telegram import Update, Bot
-from telegram.ext import Application, MessageHandler, filters, ContextTypes, CommandHandler
+from telegram.ext import (
+    Application,
+    MessageHandler,
+    filters,
+    ContextTypes,
+    CommandHandler,
+)
 
 from .orchestrator import Orchestrator
 from .router import OutputRouter
@@ -24,14 +30,13 @@ async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = update.message.chat.id
     username = update.message.from_user.username or "N/A"
-    text = update.message.text or ""
 
     print("--- Message Received ---")
     print(f"  Chat ID: {chat_id}")
     print(f"  From:    @{username}")
     print("  Message: {text}")
     print("------------------------\n")
-    
+
     await update.message.reply_text(f"Your Chat ID is: {chat_id}")
 
 
@@ -90,24 +95,27 @@ async def main():
 
     # --- Main Gramit Logic ---
     if not args.chat_id:
-        parser.error("the following arguments are required: --chat-id (or GRAMIT_CHAT_ID env var)")
+        parser.error(
+            "the following arguments are required: --chat-id (or GRAMIT_CHAT_ID env var)"
+        )
     if not args.command:
         parser.error("the following arguments are required: command")
 
     # --- Main Execution Loop ---
     output_task = None
-    shutdown_event = asyncio.Event() # New: Event to signal shutdown
+    shutdown_event = asyncio.Event()  # New: Event to signal shutdown
 
     # --- Component Setup ---
     orchestrator = Orchestrator(args.command)
 
     bot = Bot(token)
-    sender = lambda msg: bot.send_message(chat_id=args.chat_id, text=msg)
+    def sender(msg):
+        return bot.send_message(chat_id=args.chat_id, text=msg)
 
     input_router = InputRouter(
         orchestrator=orchestrator,
         authorized_chat_ids=[int(args.chat_id)],
-        shutdown_event=shutdown_event, # New: Pass the shutdown event
+        shutdown_event=shutdown_event,  # New: Pass the shutdown event
     )
     output_router = OutputRouter(
         orchestrator=orchestrator,
@@ -117,7 +125,9 @@ async def main():
 
     # --- Application Setup ---
     application = Application.builder().token(token).build()
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message))
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message)
+    )
     application.add_handler(CommandHandler("quit", input_router.handle_command))
     application.add_error_handler(error_handler)
 
@@ -131,7 +141,9 @@ async def main():
                 print("CLI: Telegram application started.")
             except Exception as e:
                 print(f"CLI: Error starting Telegram polling: {e}")
-                await sender(f"Error starting Telegram bot: {e}. Please check your token.")
+                await sender(
+                    f"Error starting Telegram bot: {e}. Please check your token."
+                )
                 return
 
             # Send initial message
@@ -143,15 +155,19 @@ async def main():
             await sender(initial_message)
 
             proc_pid = await orchestrator.start()
-            print(f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}")
+            print(
+                f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}"
+            )
             print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}")
 
             output_task = asyncio.create_task(output_router.start())
-            
+
             try:
                 await asyncio.gather(output_task, shutdown_event.wait())
             except asyncio.CancelledError:
-                print("CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown.")
+                print(
+                    "CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown."
+                )
                 # Ensure orchestrator and output_task are shut down
                 if orchestrator.is_alive():
                     print("CLI: Orchestrator process still alive, shutting down.")
@@ -165,12 +181,12 @@ async def main():
                         pass
                 # The async with application block's __aexit__ will handle Telegram app shutdown.
                 await sender("Gramit application was interrupted. Goodbye!")
-                raise # Re-raise to allow async with to handle it
+                raise  # Re-raise to allow async with to handle it
 
             print("CLI: Orchestrated process has terminated.")
             await sender("Orchestrated process has terminated. Goodbye!")
 
-    except Exception as e: # Catch any other exceptions
+    except Exception as e:  # Catch any other exceptions
         print(f"CLI: An unexpected error occurred: {e}")
         await sender(f"Gramit encountered an error: {e}. Shutting down.")
     finally:

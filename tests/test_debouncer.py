@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock
 import pytest
 
 from gramit.debouncer import AsyncDebouncer

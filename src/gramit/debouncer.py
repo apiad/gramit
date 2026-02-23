@@ -44,7 +44,7 @@ class AsyncDebouncer:
         """
         if self._task:
             self._task.cancel()
-            self._task = None # Clear the task reference
+            self._task = None  # Clear the task reference
 
         if self._buffer:
             # Directly call the flush callback with the current buffer

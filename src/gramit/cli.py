@@ -94,34 +94,34 @@ async def main():
     if not args.command:
         parser.error("the following arguments are required: command")
 
-    # --- Component Setup ---
-    orchestrator = Orchestrator(args.command)
-
-    bot = Bot(token)
-    sender = lambda msg: bot.send_message(chat_id=args.chat_id, text=msg)
-
-    input_router = InputRouter(
-        orchestrator=orchestrator,
-        authorized_chat_ids=[int(args.chat_id)],
-        shutdown_event=shutdown_event, # New: Pass the shutdown event
-    )
-    output_router = OutputRouter(
-        orchestrator=orchestrator,
-        sender=sender,
-        mode="line",
-    )
-
-    # --- Application Setup ---
-    application = Application.builder().token(token).build()
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message))
-    application.add_handler(CommandHandler("quit", input_router.handle_command))
-    application.add_error_handler(error_handler)
-
     # --- Main Execution Loop ---
     output_task = None
     shutdown_event = asyncio.Event() # New: Event to signal shutdown
 
     try:
+        # --- Component Setup ---
+        orchestrator = Orchestrator(args.command)
+
+        bot = Bot(token)
+        sender = lambda msg: bot.send_message(chat_id=args.chat_id, text=msg)
+
+        input_router = InputRouter(
+            orchestrator=orchestrator,
+            authorized_chat_ids=[int(args.chat_id)],
+            shutdown_event=shutdown_event, # New: Pass the shutdown event
+        )
+        output_router = OutputRouter(
+            orchestrator=orchestrator,
+            sender=sender,
+            mode="line",
+        )
+
+        # --- Application Setup ---
+        application = Application.builder().token(token).build()
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message))
+        application.add_handler(CommandHandler("quit", input_router.handle_command))
+        application.add_error_handler(error_handler)
+
         async with application:
             print("CLI: Initializing Telegram application...")
             await application.start()

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.1]
 
 ### Fixed
+- Resolved `UnboundLocalError` for `shutdown_event` by moving its initialization to an earlier point in `cli.py`.
 - Implemented graceful shutdown for `Ctrl+C` and `/quit` command by using `asyncio.Event` to signal shutdown and ensuring all components are properly terminated.
 - Replaced `application.run_until_disconnected()` with `async with application:` and `await asyncio.Future()` for correct asynchronous Telegram bot lifecycle management in `cli.py`.
 - Reverted temporary debugging changes in `cli.py` and `telegram.py` to restore intended application flow.

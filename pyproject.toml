@@ -2,14 +2,34 @@
 name = "gramit"
 version = "0.1.2"
 description = "A tool to bridge local CLI applications with a remote Telegram interface."
-authors = [{ name = "Gemini", email = "gemini@google.com" }]
+authors = [{ name = "Alejandro Piad", email = "alepiad@gmail.com" }]
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.12"
+keywords = ["telegram", "cli", "terminal", "bridge", "remote-control"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+]
 dependencies = [
     "pyte>=0.8.2",
     "python-dotenv>=1.2.1",
     "python-telegram-bot>=22.6",
 ]
+
+[project.urls]
+Homepage = "https://github.com/apiad/gramit"
+Repository = "https://github.com/apiad/gramit"
+Issues = "https://github.com/apiad/gramit/issues"
+Changelog = "https://github.com/apiad/gramit/blob/main/CHANGELOG.md"
 
 [project.scripts]
 gramit = "gramit.cli:run"

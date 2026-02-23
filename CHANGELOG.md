@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added detailed installation instructions for `pip`, `pipx`, and `uv` to `README.md`.
+- Added project descriptors (keywords, classifiers, and URLs) to `pyproject.toml` for better metadata and discoverability.
 
 ### Fixed
 - Corrected a missing f-string in `cli.py` logging.

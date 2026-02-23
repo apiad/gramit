@@ -17,6 +17,7 @@ class InputRouter:
     ):
         self._orchestrator = orchestrator
         self._authorized_chat_ids = authorized_chat_ids
+        print(f"InputRouter initialized. Authorized chat IDs: {authorized_chat_ids}")
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -26,13 +27,16 @@ class InputRouter:
             return
 
         chat_id = update.message.chat.id
+        text = update.message.text
+        print(f"InputRouter: Received message from chat ID {chat_id}: '{text[:50]}...'")
+
         if chat_id not in self._authorized_chat_ids:
-            # In a real app, maybe send a "not authorized" message
+            print(f"InputRouter: Unauthorized chat ID {chat_id}. Ignoring message.")
             return
 
-        text = update.message.text
-        # Assume input from Telegram is a command that needs a newline
+        print(f"InputRouter: Authorized message. Writing to orchestrator: '{text[:50]}...'")
         await self._orchestrator.write(text + "\n")
+        print("InputRouter: Message written to orchestrator.")
 
     async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -42,13 +46,18 @@ class InputRouter:
             return
 
         chat_id = update.message.chat.id
+        command_text = update.message.text
+        print(f"InputRouter: Received command from chat ID {chat_id}: '{command_text}'")
+
         if chat_id not in self._authorized_chat_ids:
-            # In a real app, maybe send a "not authorized" message
+            print(f"InputRouter: Unauthorized chat ID {chat_id}. Ignoring command.")
             return
 
-        command = update.message.text.split(' ')[0] # Get the command part
+        command = command_text.split(' ')[0] # Get the command part
         if command == "/quit":
+            print("InputRouter: Handling /quit command.")
             await context.bot.send_message(
                 chat_id=chat_id, text="Shutting down the orchestrated process."
             )
             await self._orchestrator.shutdown()
+            print("InputRouter: Orchestrator shutdown initiated.")

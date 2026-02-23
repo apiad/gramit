@@ -44,3 +44,9 @@ gramit --chat-id YOUR_CHAT_ID ping 8.8.8.8
 
 - Any text you send to your bot on Telegram will be piped to the `stdin` of the running command.
 - Any `stdout` from the command will be sent back to you as a Telegram message.
+
+**Interactive Example (Reverse Echo):**
+```sh
+gramit python examples/reverse_echo.py
+```
+Then, send messages to your bot on Telegram. It will echo them back in reverse.

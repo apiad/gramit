@@ -37,6 +37,32 @@ async def test_input_router_handles_authorized_message():
 
 
 @pytest.mark.asyncio
+async def test_input_router_quit_command():
+    """
+    Tests that the InputRouter correctly handles the /quit command,
+    shutting down the orchestrator and sending a confirmation.
+    """
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.shutdown = AsyncMock()
+
+    mock_context = MagicMock()
+    mock_context.bot.send_message = AsyncMock()
+
+    router = InputRouter(
+        orchestrator=mock_orchestrator,
+        authorized_chat_ids=[12345]
+    )
+
+    update = MockUpdate(text="/quit", chat_id=12345)
+    await router.handle_command(update, mock_context)
+
+    mock_orchestrator.shutdown.assert_awaited_once()
+    mock_context.bot.send_message.assert_awaited_once_with(
+        chat_id=12345, text="Shutting down the orchestrated process."
+    )
+
+
+@pytest.mark.asyncio
 async def test_input_router_ignores_unauthorized_message():
     """
     Tests that the InputRouter ignores messages from unauthorized chat IDs.

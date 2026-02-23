@@ -33,3 +33,22 @@ class InputRouter:
         text = update.message.text
         # Assume input from Telegram is a command that needs a newline
         await self._orchestrator.write(text + "\n")
+
+    async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Handles incoming Telegram commands.
+        """
+        if not update.message or not update.message.text:
+            return
+
+        chat_id = update.message.chat.id
+        if chat_id not in self._authorized_chat_ids:
+            # In a real app, maybe send a "not authorized" message
+            return
+
+        command = update.message.text.split(' ')[0] # Get the command part
+        if command == "/quit":
+            await context.bot.send_message(
+                chat_id=chat_id, text="Shutting down the orchestrated process."
+            )
+            await self._orchestrator.shutdown()

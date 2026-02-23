@@ -50,3 +50,8 @@ gramit --chat-id YOUR_CHAT_ID ping 8.8.8.8
 gramit python examples/reverse_echo.py
 ```
 Then, send messages to your bot on Telegram. It will echo them back in reverse.
+
+**Features:**
+- Upon starting, Gramit sends an initial message to Telegram indicating the command being run.
+- When the orchestrated process ends, a "goodbye" message is sent to Telegram.
+- Send `/quit` to your bot to gracefully terminate the running command from Telegram.

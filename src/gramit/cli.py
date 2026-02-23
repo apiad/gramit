@@ -103,11 +103,20 @@ async def main():
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message)
     )
+    application.add_handler(CommandHandler("quit", input_router.handle_command))
 
     # --- Main Execution Loop ---
     async with application:
         await application.initialize()
         await application.start()
+
+        # Send initial message
+        initial_message = (
+            f"Gramit started for command: `{' '.join(args.command)}`\n"
+            f"Broadcasting to chat ID: `{args.chat_id}`\n"
+            "Send `/quit` to terminate the process."
+        )
+        await sender(initial_message)
 
         proc_pid = await orchestrator.start()
         print(f"Started process {proc_pid} with command: {' '.join(args.command)}")
@@ -120,6 +129,8 @@ async def main():
         await output_task
 
         print("Orchestrated process has terminated.")
+        # Send goodbye message
+        await sender("Orchestrated process has terminated. Goodbye!")
         await application.stop()
 
 

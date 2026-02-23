@@ -16,39 +16,54 @@ class FileTailer:
         self._poll_interval = poll_interval
         self._stop_event = asyncio.Event()
 
-    async def read_new(self):
+    async def read_new(self, orchestrator: Orchestrator):
         """
         A generator that yields new content appended to the file.
         Wait for the file to be created if it doesn't exist yet.
         """
-        # Wait for file to exist
+        # Wait for file to exist OR process to die
         while not os.path.exists(self._file_path):
-            if self._stop_event.is_set():
+            if self._stop_event.is_set() or not orchestrator.is_alive():
                 return
             await asyncio.sleep(self._poll_interval)
 
-        with open(self._file_path, "r", encoding="utf-8", errors="replace") as f:
-            # If the file exists but we are just starting, we might want to 
-            # decide whether to start from the beginning or the end.
-            # For now, let's start from the current end to truly "tail"
-            # UNLESS it's the very first time we see content in it.
-            f.seek(0, os.SEEK_END)
-            last_pos = f.tell()
-
-            while not self._stop_event.is_set():
-                # Check if file shrunk (truncated)
-                current_size = os.path.getsize(self._file_path)
-                if current_size < last_pos:
-                    f.seek(0)
-                
-                line = f.readline()
-                if not line:
-                    await asyncio.sleep(self._poll_interval)
+        loop = asyncio.get_running_loop()
+        
+        # We'll reopen the file if it's replaced/rotated
+        while not self._stop_event.is_set() and orchestrator.is_alive():
+            try:
+                with open(self._file_path, "r", encoding="utf-8", errors="replace") as f:
+                    # Seek to end initially
+                    f.seek(0, os.SEEK_END)
                     last_pos = f.tell()
-                    continue
-                
-                yield line
-                last_pos = f.tell()
+                    inode = os.fstat(f.fileno()).st_ino
+
+                    while not self._stop_event.is_set() and orchestrator.is_alive():
+                        # Check if file was rotated or replaced
+                        try:
+                            curr_stat = os.stat(self._file_path)
+                            if curr_stat.st_ino != inode:
+                                break # Reopen file
+                            
+                            # Check for truncation
+                            if curr_stat.st_size < last_pos:
+                                f.seek(0)
+                                last_pos = 0
+                        except FileNotFoundError:
+                            break # File moved/deleted, wait for it to reappear
+
+                        # Read available data
+                        data = await loop.run_in_executor(None, f.read, 4096)
+                        
+                        if not data:
+                            await asyncio.sleep(self._poll_interval)
+                            continue
+                        
+                        yield data
+                        last_pos = f.tell()
+            except Exception:
+                await asyncio.sleep(self._poll_interval)
+                continue
 
     def stop(self):
         self._stop_event.set()
@@ -83,60 +98,144 @@ class OutputRouter:
         """
         Starts the main loop to read and route output.
         """
+        # Prepare terminal for mirroring
+        self._prepare_terminal()
+
+        # Always drain the PTY to mirror to local terminal and prevent blocking.
+        pty_drainer = asyncio.create_task(self._drain_pty())
+
         if self._output_stream:
             self._tailer = FileTailer(self._output_stream)
-            async for data in self._tailer.read_new():
-                await self._process_line_mode(data)
+            try:
+                async for data in self._tailer.read_new(self._orchestrator):
+                    await self._process_line_mode(data)
+                    # Push to debouncer
+                    if self._buffer:
+                        await self._debouncer.push(self._buffer)
+                        self._buffer = ""
+            except asyncio.CancelledError:
+                pass
+            finally:
+                if self._tailer:
+                    self._tailer.stop()
         else:
-            while True:
+            # Standard PTY -> Telegram mode
+            while self._orchestrator.is_alive():
                 try:
+                    # Non-blocking read attempt
                     data = await self._orchestrator.read(1024)
                     if not data:
-                        # EOF
-                        break
+                        # Might be EOF or just temporary no-data
+                        if not self._orchestrator.is_alive():
+                            break
+                        await asyncio.sleep(0.05)
+                        continue
+                    
+                    # Mirror to local
+                    import sys
+                    sys.stdout.write(data)
+                    sys.stdout.flush()
 
-                    if self._mode == "line":
-                        await self._process_line_mode(data)
+                    await self._process_line_mode(data)
+                    if self._buffer:
+                        await self._debouncer.push(self._buffer)
+                        self._buffer = ""
 
                 except asyncio.CancelledError:
                     break
                 except Exception:
-                    # In a real app, log this error
                     break
+        
+        # Cleanup drainer
+        if not pty_drainer.done():
+            pty_drainer.cancel()
+            try:
+                await pty_drainer
+            except asyncio.CancelledError:
+                pass
 
-        # Cleanup and final flushes
-        if self._tailer:
-            self._tailer.stop()
-
-        # Before final flush, push any remaining data in the internal buffer
+        # Final flushes for any remaining data
         if self._buffer:
             await self._debouncer.push(self._buffer)
             self._buffer = ""
-
-        # Now, force a final flush
         await self._debouncer.flush()
+        
+        # Restore terminal state in case it was a TUI
+        self._restore_terminal()
+
+    def _prepare_terminal(self):
+        """
+        Clears the terminal and moves cursor to home before mirroring.
+        """
+        import sys
+        # \x1b[2J: clear screen, \x1b[H: home cursor
+        sys.stdout.write("\x1b[2J\x1b[H")
+        sys.stdout.flush()
+
+    def _restore_terminal(self):
+        """
+        Sends ANSI escape sequences to disable mouse tracking, 
+        exit alternate screen buffer, and clear the screen.
+        """
+        import sys
+        # Disable various mouse tracking modes
+        # ?1000l: VT200, ?1002l: Button event, ?1003l: Any event, ?1006l: SGR
+        # ?1049l: Exit alternate screen
+        # \x1b[2J\x1b[H: Clear and home
+        sequences = "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[2J\x1b[H"
+        sys.stdout.write(sequences)
+        sys.stdout.flush()
+        
+        # Also try to run stty sane to be extra sure
+        import subprocess
+        try:
+            subprocess.run(["stty", "sane"], check=False, capture_output=True)
+        except Exception:
+            pass
+
+    async def _drain_pty(self):
+        """
+        Mirror PTY to local stdout. Only used if output_stream is active.
+        """
+        if not self._output_stream:
+            return
+
+        import sys
+        while self._orchestrator.is_alive():
+            try:
+                data = await self._orchestrator.read(1024)
+                if not data:
+                    if not self._orchestrator.is_alive():
+                        break
+                    await asyncio.sleep(0.05)
+                    continue
+                sys.stdout.write(data)
+                sys.stdout.flush()
+            except (asyncio.CancelledError, OSError, EOFError):
+                break
+            except Exception:
+                break
 
     async def _process_line_mode(self, data: str):
+        # Accumulate in buffer
         self._buffer += data
-
-        # Split by newline, keeping the last (potentially incomplete) part
-        lines = self._buffer.split("\n")
-        self._buffer = lines.pop()  # Store the last part back in buffer
-
-        for line in lines:
-            if line:  # Only push non-empty lines
-                await self._debouncer.push(line)
 
     async def _flush_buffer(self, items: list[str]):
         if not items:
             return
 
-        full_message = "\n".join(items)
+        full_text = "".join(items)
+        # Split into lines and filter empty ones
+        lines = [line.strip() for line in full_text.split("\n") if line.strip()]
+        
+        if not lines:
+            return
+            
+        full_message = "\n".join(lines)
 
         # Telegram message limit is 4096 characters
         MAX_TELEGRAM_MSG = 4096
         if len(full_message) > MAX_TELEGRAM_MSG:
-            # Trim the message if it's too long
             half_limit = (MAX_TELEGRAM_MSG // 2) - 50
             full_message = (
                 full_message[:half_limit]

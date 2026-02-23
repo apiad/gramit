@@ -16,8 +16,13 @@ async def test_file_tailer_reads_new_appends(tmp_path):
     
     results = []
     
+    # Mock orchestrator
+    from unittest.mock import MagicMock
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.is_alive.return_value = True
+
     async def run_tailer():
-        async for line in tailer.read_new():
+        async for line in tailer.read_new(mock_orchestrator):
             results.append(line)
             if len(results) == 2:
                 tailer.stop()
@@ -51,8 +56,13 @@ async def test_file_tailer_waits_for_file_creation(tmp_path):
     
     results = []
     
+    # Mock orchestrator
+    from unittest.mock import MagicMock
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.is_alive.return_value = True
+
     async def run_tailer():
-        async for line in tailer.read_new():
+        async for line in tailer.read_new(mock_orchestrator):
             results.append(line)
             if len(results) == 1:
                 tailer.stop()
@@ -63,9 +73,8 @@ async def test_file_tailer_waits_for_file_creation(tmp_path):
     await asyncio.sleep(0.1)
     
     # Writing the file should trigger the tailer. 
-    # Because of SEEK_END, we need to append AFTER it's opened or it might be missed 
-    # if the timing is too tight.
-    test_file.write_text("") # Touch file
+    # To be safe, we create it empty first, then append.
+    test_file.write_text("")
     await asyncio.sleep(0.1)
     with open(test_file, "a") as f:
         f.write("first line\n")

@@ -64,6 +64,14 @@ class Orchestrator:
         if pid == pty.CHILD:
             # In the child process, execute the command
             try:
+                cmd = self._command[0]
+                # If the command is not an absolute path and not in PATH,
+                # but exists in the current directory, prepend ./
+                import shutil
+                if not os.path.isabs(cmd) and os.path.sep not in cmd:
+                    if not shutil.which(cmd) and os.path.exists(cmd):
+                        self._command[0] = os.path.join(os.curdir, cmd)
+                
                 os.execvp(self._command[0], self._command)
             except OSError as e:
                 # If execvp fails, we need to exit the child process

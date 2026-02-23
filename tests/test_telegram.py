@@ -37,8 +37,9 @@ async def test_input_router_handles_authorized_message():
     update = MockUpdate(text="ls -l", chat_id=12345)
     await router.handle_message(update, context=None)
 
-    # Expect the text to be written to the orchestrator with a newline
-    mock_orchestrator.write.assert_awaited_once_with("ls -l\n")
+    # Expect the text to be written to the orchestrator with a carriage return (\r)
+    mock_orchestrator.write.assert_awaited_once_with("ls -l\r")
+    
     mock_shutdown_event.set.assert_not_called()  # Should not be called
 
 

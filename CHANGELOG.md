@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.1]
 
 ### Added
+- `examples/reverse_echo.py` script for interactive testing.
 - Console script `gramit` for easier execution.
 - `--register` mode to easily find a user's chat ID.
 - Support for `GRAMIT_CHAT_ID` environment variable as an alternative to `--chat-id`.

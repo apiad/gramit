@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.1]
 
 ### Fixed
+- Replaced `application.run_until_disconnected()` with `async with application:` and `await asyncio.Future()` for correct asynchronous Telegram bot lifecycle management in `cli.py`.
 - Reverted temporary debugging changes in `cli.py` and `telegram.py` to restore intended application flow.
 - Corrected `SyntaxError` in `src/gramit/telegram.py` related to an unmatched parenthesis.
 

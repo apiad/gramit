@@ -76,10 +76,16 @@ async def main():
         application.add_handler(MessageHandler(filters.TEXT, _register_handler))
         application.add_error_handler(error_handler)
         async with application:
-            await application.initialize()
             await application.start()
             await application.updater.start_polling()
-            await application.run_until_disconnected()
+            # Keep it running until manually stopped
+            try:
+                await asyncio.Future()
+            except asyncio.CancelledError:
+                pass
+            finally:
+                await application.updater.stop()
+                await application.stop()
         return
 
     # --- Main Gramit Logic ---
@@ -112,40 +118,40 @@ async def main():
 
     # --- Main Execution Loop ---
     output_task = None
-    telegram_polling_task = None
     try:
-        print("CLI: Initializing Telegram application...")
-        await application.initialize()
-        print("CLI: Starting Telegram application (polling)...")
-        try:
-            await application.updater.start_polling()
-            print("CLI: Telegram application started.")
-        except Exception as e:
-            print(f"CLI: Error starting Telegram polling: {e}")
-            await sender(f"Error starting Telegram bot: {e}. Please check your token.")
-            return
+        async with application:
+            print("CLI: Initializing Telegram application...")
+            await application.start()
+            print("CLI: Starting Telegram application (polling)...")
+            try:
+                await application.updater.start_polling()
+                print("CLI: Telegram application started.")
+            except Exception as e:
+                print(f"CLI: Error starting Telegram polling: {e}")
+                await sender(f"Error starting Telegram bot: {e}. Please check your token.")
+                return
 
-        # Send initial message
-        initial_message = (
-            f"Gramit started for command: `{' '.join(args.command)}`\n"
-            f"Broadcasting to chat ID: `{args.chat_id}`\n"
-            "Send `/quit` to terminate the process."
-        )
-        await sender(initial_message)
+            # Send initial message
+            initial_message = (
+                f"Gramit started for command: `{' '.join(args.command)}`\n"
+                f"Broadcasting to chat ID: `{args.chat_id}`\n"
+                "Send `/quit` to terminate the process."
+            )
+            await sender(initial_message)
 
-        proc_pid = await orchestrator.start()
-        print(f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}")
-        print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}")
+            proc_pid = await orchestrator.start()
+            print(f"CLI: Started process {proc_pid} with command: {' '.join(args.command)}")
+            print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}")
 
-        output_task = asyncio.create_task(output_router.start())
-        telegram_polling_task = asyncio.create_task(application.run_until_disconnected())
+            output_task = asyncio.create_task(output_router.start())
+            
+            # Run both tasks concurrently. If one finishes, the other should be cancelled.
+            # The asyncio.Future() keeps the event loop alive for the Telegram bot.
+            await asyncio.gather(output_task, asyncio.Future())
 
-        # Run both tasks concurrently. If one finishes, the other should be cancelled.
-        await asyncio.gather(output_task, telegram_polling_task)
-
-        print("CLI: Orchestrated process has terminated.")
-        # Send goodbye message
-        await sender("Orchestrated process has terminated. Goodbye!")
+            print("CLI: Orchestrated process has terminated.")
+            # Send goodbye message
+            await sender("Orchestrated process has terminated. Goodbye!")
 
     except asyncio.CancelledError:
         print("CLI: Application cancelled (e.g., via Ctrl+C). Initiating graceful shutdown.")
@@ -160,13 +166,6 @@ async def main():
                 await output_task
             except asyncio.CancelledError:
                 pass
-        if telegram_polling_task and not telegram_polling_task.done():
-            print("CLI: Telegram polling task still running, cancelling.")
-            telegram_polling_task.cancel()
-            try:
-                await telegram_polling_task
-            except asyncio.CancelledError:
-                pass
         # Send goodbye on interrupt
         await sender("Gramit application was interrupted. Goodbye!")
     except Exception as e:
@@ -175,9 +174,20 @@ async def main():
         await sender(f"Gramit encountered an error: {e}. Shutting down.")
     finally:
         print("CLI: Stopping Telegram application...")
-        if application.running:
-            await application.stop()
-        print("CLI: Telegram application stopped.")
+        # The async with block handles application.stop() and application.updater.stop()
+        # No need to explicitly call them here.
+
+
+def run():
+    """Sync entrypoint for the console script."""
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, ValueError) as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    run()
 
 
 def run():

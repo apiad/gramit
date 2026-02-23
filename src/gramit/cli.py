@@ -150,6 +150,16 @@ async def main():
             await sender(initial_message)
 
             await orchestrator.start()
+            
+            # Handle window resize signals
+            import signal
+            loop = asyncio.get_running_loop()
+            try:
+                loop.add_signal_handler(signal.SIGWINCH, orchestrator.resize)
+            except (NotImplementedError, AttributeError):
+                # signal.SIGWINCH might not be available on all platforms
+                pass
+
             output_task = asyncio.create_task(output_router.start())
 
             try:

@@ -54,11 +54,19 @@ class Orchestrator:
 
     async def start(self) -> int:
         """
-        Spawns the child process in a new PTY.
+        Spawns the child process in a new PTY, inheriting the current terminal size.
 
         Returns:
             The PID of the spawned process.
         """
+        # Get current terminal size
+        import shutil
+        import struct
+        import fcntl
+        import termios
+        
+        cols, rows = shutil.get_terminal_size()
+
         pid, master_fd = pty.fork()
 
         if pid == pty.CHILD:
@@ -67,7 +75,6 @@ class Orchestrator:
                 cmd = self._command[0]
                 # If the command is not an absolute path and not in PATH,
                 # but exists in the current directory, prepend ./
-                import shutil
                 if not os.path.isabs(cmd) and os.path.sep not in cmd:
                     if not shutil.which(cmd) and os.path.exists(cmd):
                         self._command[0] = os.path.join(os.curdir, cmd)
@@ -81,7 +88,34 @@ class Orchestrator:
             # In the parent process
             self._pid = pid
             self._master_fd = master_fd
+            
+            # Set initial size
+            try:
+                winsize = struct.pack("HHHH", rows, cols, 0, 0)
+                fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
+            except Exception:
+                pass # Best effort
+
             return pid
+
+    def resize(self):
+        """
+        Updates the child PTY's window size to match the current terminal size.
+        """
+        if self._master_fd is None:
+            return
+
+        import shutil
+        import struct
+        import fcntl
+        import termios
+
+        try:
+            cols, rows = shutil.get_terminal_size()
+            winsize = struct.pack("HHHH", rows, cols, 0, 0)
+            fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
+        except Exception:
+            pass # Best effort
 
     def is_alive(self) -> bool:
         """Checks if the child process is currently running."""

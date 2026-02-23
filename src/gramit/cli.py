@@ -124,8 +124,13 @@ async def main():
         await application.stop()
 
 
-if __name__ == "__main__":
+def run():
+    """Sync entrypoint for the console script."""
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, ValueError) as e:
         print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    run()

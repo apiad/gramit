@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-gramit = "gramit.cli:main"
+gramit = "gramit.cli:run"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

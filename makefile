@@ -36,7 +36,7 @@ issues:
 	git add issues && git commit -m "Sync issues"
 
 # Get the current version from pyproject.toml
-CURRENT_VERSION := $(shell grep 'version = ' pyproject.toml | cut -d '"' -f 2)
+CURRENT_VERSION := $(shell grep '^version = ' pyproject.toml | cut -d '"' -f 2)
 
 .PHONY: release
 release:

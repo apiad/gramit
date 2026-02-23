@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.0.1]
 
+### Fixed
+- Reverted temporary debugging changes in `cli.py` and `telegram.py` to restore intended application flow.
+- Corrected `SyntaxError` in `src/gramit/telegram.py` related to an unmatched parenthesis.
+
 ### Added
 - Initial and goodbye messages sent to Telegram upon gramit startup/shutdown.
 - `/quit` Telegram command to gracefully terminate the orchestrated process.

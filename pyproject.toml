@@ -11,6 +11,9 @@ dependencies = [
     "python-telegram-bot>=22.6",
 ]
 
+[project.scripts]
+gramit = "gramit.cli:main"
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [

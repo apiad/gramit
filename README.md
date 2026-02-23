@@ -24,7 +24,7 @@ Gramit bridges a local CLI application with a remote Telegram interface. You can
 4.  **Find Your Chat ID**
     - The easiest way to find your chat ID is to use Gramit's built-in registration mode. Run the following command:
       ```sh
-      uv run python -m gramit.cli --register
+      gramit --register
       ```
     - Now, send any message to your bot on Telegram. Gramit will print your Chat ID to the console and also reply with it.
     - Once you have your ID, you can stop the command (`Ctrl+C`).
@@ -36,10 +36,10 @@ Run `gramit` with your command. If you have not set `GRAMIT_CHAT_ID` in your `.e
 **Basic Example:**
 ```sh
 # If GRAMIT_CHAT_ID is set in .env
-uv run python -m gramit.cli ping 8.8.8.8
+gramit ping 8.8.8.8
 
 # If GRAMIT_CHAT_ID is NOT set
-uv run python -m gramit.cli --chat-id YOUR_CHAT_ID ping 8.8.8.8
+gramit --chat-id YOUR_CHAT_ID ping 8.8.8.8
 ```
 
 - Any text you send to your bot on Telegram will be piped to the `stdin` of the running command.

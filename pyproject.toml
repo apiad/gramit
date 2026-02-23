@@ -1,0 +1,25 @@
+[project]
+name = "gramit"
+version = "0.0.1"
+description = "A tool to bridge local CLI applications with a remote Telegram interface."
+authors = [{ name = "Gemini", email = "gemini@google.com" }]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyte>=0.8.2",
+    "python-dotenv>=1.2.1",
+    "python-telegram-bot>=22.6",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+]

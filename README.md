@@ -1,8 +1,10 @@
-# Gramit
+# Gramit: The Ultimate Telegram-to-Terminal Connector
 
 [![Run Tests](https://github.com/apiad/gramit/actions/workflows/tests.yaml/badge.svg)](https://github.com/apiad/gramit/actions/workflows/tests.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+
+Gramit is the most beautiful, robust, and secure way to bridge your local CLI applications with a remote Telegram interface. It allows you to run any command on your machine—from simple scripts to complex TUIs—and interact with it from anywhere in the world.
 
 > [!CAUTION]
 > **SECURITY WARNING: REMOTE ACCESS RISK**
@@ -16,25 +18,48 @@
 > - Ensure your `GRAMIT_CHAT_ID` is correctly configured to *your* ID only.
 > - Be extremely cautious when bridging shells or administrative tools.
 
-Gramit bridges a local CLI application with a remote Telegram interface. It allows you to run any long-running command on your machine and interact with it from anywhere using Telegram. While designed to be generic for any CLI, it's particularly useful for interactive AI CLIs like **Gemini CLI**, **Claude Code**, or similar tools where you want to maintain a persistent session and interact remotely.
+---
 
-## How it Works
+## 🌟 Key Features
 
-Gramit acts as a conduit between your local command-line application and your Telegram bot.
--   **Input Redirection:** Any message you send to your Telegram bot is piped directly to the `stdin` of the running local command.
--   **Output Capture:** All `stdout` from your local command is captured and sent back to you as a Telegram message.
--   **Session Management:** It maintains a persistent session, allowing for continuous interaction with your CLI application.
+### 🚀 Dual Output Modes
+Gramit offers two powerful ways to bridge your terminal output to Telegram:
 
-## Setup
+1.  **Standard Mode (IO):** Directly captures the `stdout` of your process via a Pseudo-Terminal (PTY). Perfect for line-based apps and scripts. Gramit intelligently aggregates and debounces output to ensure you don't get spammed with dozens of tiny messages.
+2.  **External Stream Mode (`-o` / `--output-stream`):** For complex TUI applications where raw terminal output is "noisy" (filled with borders, colors, and ANSI codes), you can instruct Gramit to "tail" a clean side-log file instead. 
+
+### 🖥️ Native Terminal Experience
+Gramit isn't just a blind pipe; it respects your terminal:
+-   **Terminal Size Inheritance:** Child processes automatically inherit the size of your host terminal on startup.
+-   **Dynamic Resizing:** Resize your local terminal window, and Gramit propagates the change to the child process instantly (`SIGWINCH` support).
+-   **Local Mirroring:** See the TUI running locally in your terminal while you interact with it remotely via Telegram.
+-   **Robust Cleanup:** When you exit, Gramit performs a full terminal restoration—clearing the screen, homing the cursor, disabling mouse tracking, and exiting alternate screen buffers. No more "broken" terminals!
+
+### 🔒 Built-in Security
+-   **Locked-down by Default:** Only messages from your specific `chat_id` are processed.
+-   **Credential Safety:** Tokens are handled via environment variables or secured `.env` files.
+-   **Rate Limiting:** Protects your bot and machine from memory exhaustion and API flooding.
+
+---
+
+## 💡 Pro Use Case: Gemini CLI
+
+Interactive AI CLIs are the perfect companions for Gramit. Here is how to set up **Gemini CLI** for an optimal remote experience:
+
+1.  **Instruct the AI:** Add a rule to your `GEMINI.md` or system prompt: *"Log all final responses into a file named gemini.log"*.
+2.  **Launch with Gramit:**
+    ```sh
+    gramit -o gemini.log gemini
+    ```
+3.  **The Result:** You see the full, beautiful TUI locally if you are at your desk. When you're away, you send prompts via Telegram, and Gramit tails the clean `gemini.log` to send the AI's responses back to you.
+
+---
+
+## 🛠️ Setup
 
 1.  **Installation**
 
-    You can install Gramit using your favorite Python package manager:
-
-    **Using `pip`:**
-    ```sh
-    pip install gramit
-    ```
+    Install Gramit using your favorite Python package manager:
 
     **Using `pipx` (Recommended for CLI tools):**
     ```sh
@@ -52,59 +77,48 @@ Gramit acts as a conduit between your local command-line application and your Te
 
 2.  **Get a Telegram Bot Token**
     - Talk to the [@BotFather](https://t.me/BotFather) on Telegram.
-    - Create a new bot and copy the token it gives you.
+    - Create a new bot and copy the token.
 
 3.  **Set Environment Variables**
-    - Create a file named `.env` in the project root.
-    - Add the following line to it, replacing `YOUR_TOKEN_HERE` with the token you just got:
-      ```
-      GRAMIT_TELEGRAM_TOKEN="YOUR_TOKEN_HERE"
-      ```
-    - You can also optionally add your Chat ID to this file (see step 4):
-      ```
-      GRAMIT_CHAT_ID="YOUR_CHAT_ID_HERE"
+    - Create a file named `.env` in your project root or your home directory.
+    - Add your credentials (and secure the file: `chmod 600 .env`):
+      ```bash
+      GRAMIT_TELEGRAM_TOKEN="8559400368:AAEECcgfbQMC19bvNxW3YsdEdrnGNQeqZbY"
+      GRAMIT_CHAT_ID="YOUR_CHAT_ID"
       ```
 
 4.  **Find Your Chat ID**
-    - The easiest way to find your chat ID is to use Gramit's built-in registration mode. Run the following command:
-      ```sh
-      gramit --register
-      ```
-    - Now, send any message to your bot on Telegram. Gramit will print your Chat ID to the console and also reply with it.
-    - Once you have your ID, you can stop the command (`Ctrl_C`).
+    If you don't know your ID, run:
+    ```sh
+    gramit --register
+    ```
+    Send any message to your bot, and it will reply with your ID.
 
-## Usage
+---
 
-Run `gramit` with your command. If you have not set `GRAMIT_CHAT_ID` in your `.env` file, you must also provide the `--chat-id` argument.
+## 📖 Usage Examples
 
-**Basic Example:**
+**Simple Command:**
 ```sh
-# If GRAMIT_CHAT_ID is set in .env
 gramit ping 8.8.8.8
-
-# If GRAMIT_CHAT_ID is NOT set
-gramit --chat-id YOUR_CHAT_ID ping 8.8.8.8
 ```
 
-- Any text you send to your bot on Telegram will be piped to the `stdin` of the running command.
-- Any `stdout` from the command will be sent back to you as a Telegram message.
-
-**Interactive Example (TUI with side-log):**
+**Interactive TUI with Side-Log:**
 ```sh
-# Start the example app and tell gramit to tail its log
+# Start our built-in example chat app
 gramit -o tui_echo.log python examples/tui_echo_with_log.py
 ```
-This is useful for complex TUIs where the terminal output is messy, but the application can write a clean interaction log to a file. Gramit will bridge the file content to Telegram while still piping your Telegram input to the app's `stdin`.
 
-**Features:**
-- Upon starting, Gramit sends an initial message to Telegram indicating the command being run.
-- When the orchestrated process ends, a "goodbye" message is sent to Telegram.
-- Send `/quit` to your bot to gracefully terminate the running command from Telegram.
+---
 
-## License
+## 🐧 Platform Support & Contributions
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Gramit is **currently only tested on Linux (bash)**. 
 
-## Contributions
+Because it relies on native PTY features (`os.forkpty`, `termios`, `fcntl`), behavior on macOS or Windows (WSL) may vary. 
 
-Contributions are welcome! If you have suggestions for improvements, new features, or bug fixes, please open an issue or submit a pull request.
+**Contributions are highly welcomed!** If you've tested Gramit on other OSes or terminals and found bugs (or fixes), please open an issue or a PR.
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) for details.

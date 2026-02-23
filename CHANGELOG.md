@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.0]
+
+### Added
+- **External Output Streaming:** New `-o` / `--output-stream` option to "tail" a file for output instead of capturing PTY stdout. This allows clean bridging of complex TUI applications.
+- **Terminal Size Inheritance:** Child processes now inherit the terminal size of the host on startup.
+- **Dynamic Resizing:** Added support for propagating `SIGWINCH` signals, ensuring TUI applications resize correctly with the terminal window.
+- **Local Mirroring:** Gramit now mirrors the child process output to the local terminal, allowing for direct monitoring.
+- **TUI-Friendly Examples:** Added `examples/tui_echo_with_log.py` (using `textual`) to demonstrate and test the output streaming feature.
+- **Project Metadata:** Enhanced `pyproject.toml` with keywords, classifiers, and project URLs.
+
+### Security
+- **Security Audit:** Conducted a comprehensive audit and documented findings.
+- **Permission Hardening:** Enforced owner-only permissions (`600`) for the `.env` file.
+- **Input Rate Limiting:** Implemented `max_buffer_size` in `AsyncDebouncer` to prevent memory exhaustion from talkative processes.
+- **Output Trimming:** `OutputRouter` now automatically trims overly large messages (exceeding Telegram's 4096-char limit) in the middle.
+- **Security Warnings:** Added a prominent caution to `README.md` about the risks of remote shell access.
+
+### Fixed
+- **Terminal Corruption:** Implemented robust terminal restoration on exit, including disabling mouse tracking and exiting alternate screens.
+- **Input Leakage:** Added `tcflush` with a safety delay to purge lingering ANSI mouse events from the input buffer.
+- **Process Blocking:** Fixed a bug where processes would block if their stdout wasn't being drained when in `output-stream` mode.
+- **Input Compatibility:** Changed Telegram input suffix from `\n` to `\r` for better compatibility with TUI app prompts.
+- **Path Resolution:** Fixed `execvp` permission denied errors by automatically checking the current directory for local scripts.
+- **Missing f-strings:** Fixed multiple instances of missing f-string prefixes in log statements.
+
 ## [v0.1.2]
 
 ### Security

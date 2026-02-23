@@ -20,7 +20,6 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "pyte>=0.8.2",
     "python-dotenv>=1.2.1",
     "python-telegram-bot>=22.6",
 ]
@@ -45,11 +44,13 @@ pythonpath = ["src"]
 [dependency-groups]
 dev = [
     "pip-audit>=2.10.0",
+    "prompt-toolkit>=3.0.52",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "pytest-coverage>=0.0",
     "rich>=14.3.3",
     "ruff>=0.15.2",
+    "textual>=8.0.0",
 ]
 
 [build-system]

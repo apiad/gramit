@@ -10,7 +10,6 @@ The goal of this phase is to set up a clean, professional Python project structu
 *   [x] Define project metadata and dependencies in `pyproject.toml`.
 *   [x] Use `uv add` to bring in initial dependencies:
     *   [x] `python-dotenv` (for configuration)
-    *   [x] `pyte` (for TUI mode screen emulation)
     *   [x] `python-telegram-bot` (for Telegram API interaction)
     *   [x] `pytest` and `pytest-asyncio` (for testing)
 *   [x] Create the basic source directory structure: `src/gramit/`.
@@ -34,7 +33,7 @@ This phase focuses on creating and managing a child process within a pseudo-term
 
 ## Phase 3: The Output Router (Line Mode)
 
-Before tackling the complexity of TUIs, we'll build the simpler line-based output handler and the core debouncing logic.
+We'll build the line-based output handler and the core debouncing logic.
 
 *   [x] **Testing:**
     *   [x] Write unit tests for the asynchronous `Debouncer` class. Ensure it collects items and only flushes them after the specified time interval has passed without new items.
@@ -91,6 +90,8 @@ This final phase polishes the project for release.
 *   [x] **Implementation:**
     *   [x] Implement the `gramit --register` helper mode (replaces separate script).
     *   [x] Finalize `pyproject.toml` for packaging, defining the console script entry point for `gramit`.
+    *   [x] Implement terminal size inheritance and dynamic resizing.
+    *   [x] Robust terminal cleanup and restoration on exit.
 *   [x] **Documentation:**
     *   [x] Thoroughly update `README.md` with complete installation instructions, advanced usage, examples, and security warnings.
     *   [x] Ensure all public modules and functions have high-quality docstrings.

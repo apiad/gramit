@@ -36,15 +36,15 @@ This phase focuses on creating and managing a child process within a pseudo-term
 
 Before tackling the complexity of TUIs, we'll build the simpler line-based output handler and the core debouncing logic.
 
-*   [ ] **Testing:**
-    *   [ ] Write unit tests for the asynchronous `Debouncer` class. Ensure it collects items and only flushes them after the specified time interval has passed without new items.
-    *   [ ] Write a test for the `OutputRouter` in `line-mode`. This test should simulate PTY output, and assert that a mocked Telegram sending function is called by the debouncer with correctly buffered/aggregated line content.
-*   [ ] **Implementation:**
-    *   [ ] Implement the generic `AsyncDebouncer` class.
-    *   [ ] Implement the `OutputRouter` class. It should have a method to read from the PTY master descriptor asynchronously.
-    *   [ ] Implement the line-buffering logic for `line-mode`.
-*   [ ] **Documentation:**
-    *   [ ] Write docstrings for the `AsyncDebouncer` and the `OutputRouter`, detailing the line-mode logic.
+*   [x] **Testing:**
+    *   [x] Write unit tests for the asynchronous `Debouncer` class. Ensure it collects items and only flushes them after the specified time interval has passed without new items.
+    *   [x] Write a test for the `OutputRouter` in `line-mode`. This test should simulate PTY output, and assert that a mocked Telegram sending function is called by the debouncer with correctly buffered/aggregated line content.
+*   [x] **Implementation:**
+    *   [x] Implement the generic `AsyncDebouncer` class.
+    *   [x] Implement the `OutputRouter` class. It should have a method to read from the PTY master descriptor asynchronously.
+    *   [x] Implement the line-buffering logic for `line-mode`.
+*   [x] **Documentation:**
+    *   [x] Write docstrings for the `AsyncDebouncer` and the `OutputRouter`, detailing the line-mode logic.
 
 ## Phase 4: Input Router & End-to-End Integration
 

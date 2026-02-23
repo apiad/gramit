@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.1]
 
 ### Added
+- `OutputRouter` to process and send output in line-buffered mode.
 - `AsyncDebouncer` utility to batch items after a period of inactivity.
 - I/O handling (`read`/`write`) to the `Orchestrator`.
 - `Orchestrator` class to manage child processes in a pseudo-terminal (PTY).

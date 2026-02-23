@@ -1,6 +1,17 @@
 # Gramit
 
-Gramit bridges a local CLI application with a remote Telegram interface. You can run a long-running command on your machine and interact with it from anywhere using Telegram.
+[![Run Tests](https://github.com/apiad/gramit/actions/workflows/tests.yaml/badge.svg)](https://github.com/apiad/gramit/actions/workflows/tests.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+
+Gramit bridges a local CLI application with a remote Telegram interface. It allows you to run any long-running command on your machine and interact with it from anywhere using Telegram. While designed to be generic for any CLI, it's particularly useful for interactive AI CLIs like **Gemini CLI**, **Claude Code**, or similar tools where you want to maintain a persistent session and interact remotely.
+
+## How it Works
+
+Gramit acts as a conduit between your local command-line application and your Telegram bot.
+-   **Input Redirection:** Any message you send to your Telegram bot is piped directly to the `stdin` of the running local command.
+-   **Output Capture:** All `stdout` from your local command is captured and sent back to you as a Telegram message.
+-   **Session Management:** It maintains a persistent session, allowing for continuous interaction with your CLI application.
 
 ## Setup
 
@@ -27,7 +38,7 @@ Gramit bridges a local CLI application with a remote Telegram interface. You can
       gramit --register
       ```
     - Now, send any message to your bot on Telegram. Gramit will print your Chat ID to the console and also reply with it.
-    - Once you have your ID, you can stop the command (`Ctrl+C`).
+    - Once you have your ID, you can stop the command (`Ctrl_C`).
 
 ## Usage
 
@@ -55,3 +66,11 @@ Then, send messages to your bot on Telegram. It will echo them back in reverse.
 - Upon starting, Gramit sends an initial message to Telegram indicating the command being run.
 - When the orchestrated process ends, a "goodbye" message is sent to Telegram.
 - Send `/quit` to your bot to gracefully terminate the running command from Telegram.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contributions
+
+Contributions are welcome! If you have suggestions for improvements, new features, or bug fixes, please open an issue or submit a pull request.

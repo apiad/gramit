@@ -143,7 +143,7 @@ async def main():
 
         # Keep the Telegram bot running indefinitely for testing
         print("CLI: Telegram bot running in isolation. Send messages to test reception.")
-        await application.updater.idle() # This will block until application.stop() is called
+        await asyncio.Future() # This will keep the loop running indefinitely
 
         # print("CLI: Orchestrated process has terminated.") # Temporarily commented out
         # Send goodbye message

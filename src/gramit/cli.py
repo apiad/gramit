@@ -29,7 +29,7 @@ async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("--- Message Received ---")
     print(f"  Chat ID: {chat_id}")
     print(f"  From:    @{username}")
-    print(f"  Message: {text}")
+    print("  Message: {text}")
     print("------------------------\n")
     
     await update.message.reply_text(f"Your Chat ID is: {chat_id}")
@@ -103,6 +103,7 @@ async def main():
     input_router = InputRouter(
         orchestrator=orchestrator,
         authorized_chat_ids=[int(args.chat_id)],
+        shutdown_event=shutdown_event, # New: Pass the shutdown event
     )
     output_router = OutputRouter(
         orchestrator=orchestrator,
@@ -118,6 +119,8 @@ async def main():
 
     # --- Main Execution Loop ---
     output_task = None
+    shutdown_event = asyncio.Event() # New: Event to signal shutdown
+
     try:
         async with application:
             print("CLI: Initializing Telegram application...")
@@ -146,8 +149,9 @@ async def main():
             output_task = asyncio.create_task(output_router.start())
             
             # Run both tasks concurrently. If one finishes, the other should be cancelled.
-            # The asyncio.Future() keeps the event loop alive for the Telegram bot.
-            await asyncio.gather(output_task, asyncio.Future())
+            # The shutdown_event.wait() keeps the event loop alive for the Telegram bot
+            # until a shutdown is explicitly requested (e.g., via /quit command).
+            await asyncio.gather(output_task, shutdown_event.wait())
 
             print("CLI: Orchestrated process has terminated.")
             # Send goodbye message
@@ -166,6 +170,8 @@ async def main():
                 await output_task
             except asyncio.CancelledError:
                 pass
+        # Signal the Telegram application to stop gracefully by setting the event
+        shutdown_event.set()
         # Send goodbye on interrupt
         await sender("Gramit application was interrupted. Goodbye!")
     except Exception as e:
@@ -176,18 +182,6 @@ async def main():
         print("CLI: Stopping Telegram application...")
         # The async with block handles application.stop() and application.updater.stop()
         # No need to explicitly call them here.
-
-
-def run():
-    """Sync entrypoint for the console script."""
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, ValueError) as e:
-        print(f"Error: {e}")
-
-
-if __name__ == "__main__":
-    run()
 
 
 def run():

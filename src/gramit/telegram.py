@@ -1,4 +1,5 @@
 from typing import List
+import asyncio # New import
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -15,9 +16,11 @@ class InputRouter:
         self,
         orchestrator: Orchestrator,
         authorized_chat_ids: List[int],
+        shutdown_event: asyncio.Event, # New parameter
     ):
         self._orchestrator = orchestrator
         self._authorized_chat_ids = authorized_chat_ids
+        self._shutdown_event = shutdown_event # Store the event
         print(f"InputRouter initialized. Authorized chat IDs: {authorized_chat_ids}")
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,4 +64,5 @@ class InputRouter:
                 chat_id=chat_id, text="Shutting down the orchestrated process."
             )
             await self._orchestrator.shutdown()
-            print("InputRouter: Orchestrator shutdown initiated.")
+            self._shutdown_event.set() # New: Signal shutdown
+            print("InputRouter: Orchestrator shutdown initiated and shutdown event set.")

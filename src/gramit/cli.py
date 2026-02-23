@@ -115,11 +115,11 @@ async def main():
 
     # --- Main Execution Loop ---
     output_task = None
+    telegram_polling_task = None # New task for Telegram polling
     try:
         print("CLI: Initializing Telegram application...")
         await application.initialize()
         print("CLI: Starting Telegram application (polling)...")
-        # Use start_polling for explicit polling
         await application.updater.start_polling()
         print("CLI: Telegram application started.")
 
@@ -136,10 +136,10 @@ async def main():
         print(f"CLI: Broadcasting to Telegram chat ID: {args.chat_id}")
 
         output_task = asyncio.create_task(output_router.start())
+        telegram_polling_task = asyncio.create_task(application.run_until_disconnected()) # Keep Telegram polling alive
 
-        # Keep the main task alive until orchestrator or Telegram app stops
-        # We need to wait for the output_task to finish, which implies orchestrator is done
-        await output_task # This will complete when orchestrator process ends
+        # Run both tasks concurrently. If one finishes, the other should be cancelled.
+        await asyncio.gather(output_task, telegram_polling_task)
 
         print("CLI: Orchestrated process has terminated.")
         # Send goodbye message
@@ -156,6 +156,13 @@ async def main():
             output_task.cancel()
             try:
                 await output_task
+            except asyncio.CancelledError:
+                pass
+        if telegram_polling_task and not telegram_polling_task.done():
+            print("CLI: Telegram polling task still running, cancelling.")
+            telegram_polling_task.cancel()
+            try:
+                await telegram_polling_task
             except asyncio.CancelledError:
                 pass
         # Send goodbye on interrupt

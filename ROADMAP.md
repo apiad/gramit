@@ -66,37 +66,35 @@ This phase connects Gramit to Telegram and wires all the components together int
 *   [x] **Manual Verification:**
     *   [x] Run the application end-to-end with a simple command (e.g., `ping 8.8.8.8`) to confirm the `line-mode` integration is working.
 
-## Phase 5: The Output Router (TUI Mode)
+## Phase 5: External Output Streaming
 
-This is the most complex phase, where we add support for capturing and cleaning TUI applications.
+This phase adds support for tailing an external file for output, bypassing the PTY's output capture. This is useful for complex TUI applications that can write a clean log to a file.
 
 *   [ ] **Testing:**
-    *   [ ] Write unit tests for the `HeuristicFilter`. Create sample TUI screen strings and assert that box-drawing characters, menu bars, and excess whitespace are correctly removed.
-    *   [ ] Write a new test for the `OutputRouter` in `TUI-mode`. It should feed a byte stream with ANSI escape codes to the router and assert that the `pyte` screen's text dump is correctly passed to the filter and then to the mocked Telegram sender.
+    *   [ ] Write unit tests for a `FileTailer` component that can asynchronously watch a file for new appends.
+    *   [ ] Write integration tests for the `OutputRouter` when in `output-stream` mode, ensuring it ignores PTY output and correctly routes file-tailed data.
 *   [ ] **Implementation:**
-    *   [ ] Implement the `HeuristicFilter` module with functions for cleaning the screen dump.
-    *   [ ] Integrate `pyte` into the `OutputRouter`. The router should now feed all PTY output into a `pyte.Stream` object.
-    *   [ ] Implement the snapshotting logic that dumps the `pyte` screen's display text.
-    *   [ ] Add the logic to the `OutputRouter` to use the `HeuristicFilter` on the screen snapshot before sending.
-    *   [ ] Connect the `--line-mode` CLI flag to switch between the two routing modes.
+    *   [ ] Implement a `FileTailer` class (or similar mechanism) that handles opening, seeking to end, and asynchronously reading new data from a file.
+    *   [ ] Add the `-o` / `--output-stream <FILE>` CLI argument to `cli.py`.
+    *   [ ] Update `OutputRouter` to support reading from either the `Orchestrator` (default) or the `FileTailer`.
+    *   [ ] Ensure the `Orchestrator` still manages the PTY for `stdin` even when the output is being tailed from a file.
 *   [ ] **Documentation:**
-    *   [ ] Document the `TUI-mode` functionality in the `OutputRouter` docstrings.
-    *   [ ] Explain the purpose and limitations of the `HeuristicFilter`.
+    *   [ ] Document the `--output-stream` feature in the `README.md`.
+    *   [ ] Explain the use case for this mode (e.g., bridging TUI apps that have a "log to file" feature).
 *   [ ] **Manual Verification:**
-    *   [ ] Run the application end-to-end with a TUI application (e.g., `htop`, `apt`) to confirm TUI mode is working as expected.
+    *   [ ] Run `gramit -o test.log my_app` and verify that appends to `test.log` are sent to Telegram while `stdin` still works.
 
 ## Phase 6: Finalization & Packaging
 
 This final phase polishes the project for release.
 
-*   [ ] **Implementation:**
-    *   [ ] Create the `gramit-get-chat-id` helper script.
-    *   [ ] Finalize `pyproject.toml` for packaging, defining the console script entry points for `gramit` and `gramit-get-chat-id`.
-*   [ ] **Documentation:**
-    *   [ ] Thoroughly update `README.md` with complete installation instructions, advanced usage, examples for both modes, and troubleshooting tips.
-    *   [ ] Write the final `CHANGELOG.md` entry for the first release.
-    *   [ ] Ensure all public modules and functions have high-quality docstrings.
+*   [x] **Implementation:**
+    *   [x] Implement the `gramit --register` helper mode (replaces separate script).
+    *   [x] Finalize `pyproject.toml` for packaging, defining the console script entry point for `gramit`.
+*   [x] **Documentation:**
+    *   [x] Thoroughly update `README.md` with complete installation instructions, advanced usage, examples, and security warnings.
+    *   [x] Ensure all public modules and functions have high-quality docstrings.
 *   [ ] **Final Review:**
     *   [ ] Review the entire codebase for clarity, consistency, and adherence to the design.
     *   [ ] Run all tests one last time.
-    *   [ ] Consider publishing to TestPyPI before a final release to PyPI.
+    *   [ ] Publish to PyPI.

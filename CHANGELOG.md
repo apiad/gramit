@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added detailed installation instructions for `pip`, `pipx`, and `uv` to `README.md`.
 - Added project descriptors (keywords, classifiers, and URLs) to `pyproject.toml` for better metadata and discoverability.
 
+### Changed
+- Shifted Phase 5 of the roadmap from "TUI Mode" to "External Output Streaming" (`--output-stream`). This allows bypassing TUI complexity by tailing a clean log file instead of capturing the PTY screen.
+
 ### Fixed
 - Corrected a missing f-string in `cli.py` logging.
 

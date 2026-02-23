@@ -3,7 +3,7 @@ import asyncio
 import argparse
 from dotenv import load_dotenv
 from telegram import Update, Bot
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, filters, ContextTypes, CommandHandler
 
 from .orchestrator import Orchestrator
 from .router import OutputRouter

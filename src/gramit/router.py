@@ -176,16 +176,26 @@ class OutputRouter:
         """
         Sends ANSI escape sequences to disable mouse tracking, 
         exit alternate screen buffer, and clear the screen.
+        Also flushes stdin to prevent leaked input (like mouse events).
         """
         import sys
         # Disable various mouse tracking modes
         # ?1000l: VT200, ?1002l: Button event, ?1003l: Any event, ?1006l: SGR
         # ?1049l: Exit alternate screen
+        # ?25h: Show cursor
         # \x1b[2J\x1b[H: Clear and home
-        sequences = "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[2J\x1b[H"
+        sequences = "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h\x1b[2J\x1b[H"
         sys.stdout.write(sequences)
         sys.stdout.flush()
         
+        # Flush stdin to get rid of any mouse movement/click sequences 
+        # that the terminal sent while gramit was running.
+        import termios
+        try:
+            termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
+        except Exception:
+            pass
+
         # Also try to run stty sane to be extra sure
         import subprocess
         try:

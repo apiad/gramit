@@ -1,6 +1,5 @@
 import asyncio
 import pytest
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from gramit.router import OutputRouter
 

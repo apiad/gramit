@@ -66,7 +66,6 @@ class Orchestrator:
         import struct
         import fcntl
         import termios
-        import sys
         
         # Try to get size from stdout/stdin
         try:
@@ -116,7 +115,6 @@ class Orchestrator:
         import struct
         import fcntl
         import termios
-        import sys
 
         try:
             # Use sys.stdout for size as it's most likely the TTY

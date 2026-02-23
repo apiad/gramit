@@ -8,7 +8,6 @@ from telegram.ext import (
     MessageHandler,
     filters,
     ContextTypes,
-    CommandHandler,
 )
 
 from .orchestrator import Orchestrator
@@ -107,7 +106,7 @@ async def main():
 
     # --- Main Execution Loop ---
     output_task = None
-    shutdown_event = asyncio.Event()  # New: Event to signal shutdown
+    shutdown_event = asyncio.Event()
 
     # --- Component Setup ---
     orchestrator = Orchestrator(args.command)
@@ -120,7 +119,7 @@ async def main():
     input_router = InputRouter(
         orchestrator=orchestrator,
         authorized_chat_ids=[int(args.chat_id)],
-        shutdown_event=shutdown_event,  # New: Pass the shutdown event
+        shutdown_event=shutdown_event,
     )
     output_router = OutputRouter(
         orchestrator=orchestrator,

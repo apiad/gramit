@@ -1,6 +1,5 @@
 from typing import List, Optional
 import asyncio
-  # New import
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -16,11 +15,11 @@ class InputRouter:
         self,
         orchestrator: Orchestrator,
         authorized_chat_ids: List[int],
-        shutdown_event: asyncio.Event,  # New parameter
+        shutdown_event: asyncio.Event,
     ):
         self._orchestrator = orchestrator
         self._authorized_chat_ids = authorized_chat_ids
-        self._shutdown_event = shutdown_event  # Store the event
+        self._shutdown_event = shutdown_event
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -159,11 +158,16 @@ class InputRouter:
                     c = result.lower()
                     if "a" <= c <= "z":
                         result = chr(ord(c) - ord("a") + 1)
-                    elif c == "[": result = "\x1b"
-                    elif c == "\\": result = "\x1c"
-                    elif c == "]": result = "\x1d"
-                    elif c == "^": result = "\x1e"
-                    elif c == "_": result = "\x1f"
+                    elif c == "[":
+                        result = "\x1b"
+                    elif c == "\\":
+                        result = "\x1c"
+                    elif c == "]":
+                        result = "\x1d"
+                    elif c == "^":
+                        result = "\x1e"
+                    elif c == "_":
+                        result = "\x1f"
             elif mod == "a": # Alt/Meta
                 result = "\x1b" + result
             elif mod == "s": # Shift

@@ -27,7 +27,28 @@ Gramit acts as a conduit between your local command-line application and your Te
 
 ## Setup
 
-1.  **Installation** (coming soon)
+1.  **Installation**
+
+    You can install Gramit using your favorite Python package manager:
+
+    **Using `pip`:**
+    ```sh
+    pip install gramit
+    ```
+
+    **Using `pipx` (Recommended for CLI tools):**
+    ```sh
+    pipx install gramit
+    ```
+
+    **Using `uv`:**
+    ```sh
+    # Run without installing
+    uvx gramit --help
+
+    # Or install as a tool
+    uv tool install gramit
+    ```
 
 2.  **Get a Telegram Bot Token**
     - Talk to the [@BotFather](https://t.me/BotFather) on Telegram.

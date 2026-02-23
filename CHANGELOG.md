@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restricted local `.env` file permissions to owner-only (`600`) to protect sensitive tokens.
 - Added a prominent security warning to `README.md` regarding the risks of remote command execution.
 
+### Added
+- Added detailed installation instructions for `pip`, `pipx`, and `uv` to `README.md`.
+
 ### Fixed
 - Corrected a missing f-string in `cli.py` logging.
 

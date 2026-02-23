@@ -113,69 +113,68 @@ class OutputRouter:
         if self._mirror:
             local_input_handler = asyncio.create_task(self._handle_local_input())
 
-        if self._output_stream:
-            self._tailer = FileTailer(self._output_stream)
-            try:
-                # FileTailer.read_new yields chunks of text
-                async for data in self._tailer.read_new(self._orchestrator):
-                    await self._process_line_mode(data)
-                    # For file mode, we push every new chunk to the debouncer
-                    # so the user sees it after debounce_interval
-                    if self._buffer:
-                        await self._debouncer.push(self._buffer)
-                        self._buffer = ""
-            except asyncio.CancelledError:
-                pass
-            finally:
-                if self._tailer:
-                    self._tailer.stop()
-        else:
-            # Standard PTY -> Telegram mode
-            while self._orchestrator.is_alive():
+        try:
+            if self._output_stream:
+                self._tailer = FileTailer(self._output_stream)
                 try:
-                    # Non-blocking read attempt
-                    data = await self._orchestrator.read(1024)
-                    if not data:
-                        # Might be EOF or just temporary no-data
-                        if not self._orchestrator.is_alive():
-                            break
-                        await asyncio.sleep(0.05)
-                        continue
-                    
-                    # Mirror to local
-                    if self._mirror:
-                        import sys
-                        sys.stdout.write(data)
-                        sys.stdout.flush()
-
-                    await self._process_line_mode(data)
-                    if self._buffer:
-                        await self._debouncer.push(self._buffer)
-                        self._buffer = ""
-
-                except asyncio.CancelledError:
-                    break
-                except Exception:
-                    break
-        
-        # Cleanup tasks
-        for task in [pty_drainer, local_input_handler]:
-            if task and not task.done():
-                task.cancel()
-                try:
-                    await task
+                    # FileTailer.read_new yields chunks of text
+                    async for data in self._tailer.read_new(self._orchestrator):
+                        await self._process_line_mode(data)
+                        # For file mode, we push every new chunk to the debouncer
+                        # so the user sees it after debounce_interval
+                        if self._buffer:
+                            await self._debouncer.push(self._buffer)
+                            self._buffer = ""
                 except asyncio.CancelledError:
                     pass
+                finally:
+                    if self._tailer:
+                        self._tailer.stop()
+            else:
+                # Standard PTY -> Telegram mode
+                while self._orchestrator.is_alive():
+                    try:
+                        # Non-blocking read attempt
+                        data = await self._orchestrator.read(1024)
+                        if not data:
+                            # Might be EOF or just temporary no-data
+                            if not self._orchestrator.is_alive():
+                                break
+                            await asyncio.sleep(0.05)
+                            continue
+                        
+                        # Mirror to local
+                        if self._mirror:
+                            import sys
+                            sys.stdout.write(data)
+                            sys.stdout.flush()
 
-        # Final flushes for any remaining data
-        if self._buffer:
-            await self._debouncer.push(self._buffer)
-            self._buffer = ""
-        await self._debouncer.flush()
-        
-        # Restore terminal state in case it was a TUI
-        if self._mirror:
-            self._restore_terminal()
+                        await self._process_line_mode(data)
+                        if self._buffer:
+                            await self._debouncer.push(self._buffer)
+                            self._buffer = ""
+
+                    except asyncio.CancelledError:
+                        break
+                    except Exception:
+                        break
+        finally:
+            # Cleanup tasks
+            for task in [pty_drainer, local_input_handler]:
+                if task and not task.done():
+                    task.cancel()
+                    # We don't await them here to avoid hanging if they are blocked in executors
+                    # but we do a best effort.
+            
+            # Final flushes for any remaining data
+            if self._buffer:
+                await self._debouncer.push(self._buffer)
+                self._buffer = ""
+            await self._debouncer.flush()
+            
+            # Restore terminal state in case it was a TUI
+            if self._mirror:
+                self._restore_terminal()
 
     def _prepare_terminal(self):
         """
@@ -268,11 +267,20 @@ class OutputRouter:
         Reads from local stdin and writes to the orchestrator.
         """
         import sys
+        import select
         loop = asyncio.get_running_loop()
+        fd = sys.stdin.fileno()
+        
         while self._orchestrator.is_alive():
             try:
-                # Read 1 byte at a time in raw mode
-                char = await loop.run_in_executor(None, sys.stdin.read, 1)
+                # Use select to wait for input with a timeout
+                # This makes the loop responsive to process death and cancellation
+                r, _, _ = await loop.run_in_executor(None, select.select, [fd], [], [], 0.5)
+                if not r:
+                    continue
+                
+                # Use os.read for low-level access in raw mode
+                char = os.read(fd, 1).decode('utf-8', errors='replace')
                 if not char:
                     break
                 await self._orchestrator.write(char)

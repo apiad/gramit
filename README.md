@@ -87,7 +87,7 @@ Interactive AI CLIs are the perfect companions for Gramit. Here is how to set up
     - Create a file named `.env` in your project root or your home directory.
     - Add your credentials (and secure the file: `chmod 600 .env`):
       ```bash
-      GRAMIT_TELEGRAM_TOKEN="8559400368:AAEECcgfbQMC19bvNxW3YsdEdrnGNQeqZbY"
+      GRAMIT_TELEGRAM_TOKEN="YOUR_TELEGRAM_TOKEN"
       GRAMIT_CHAT_ID="YOUR_CHAT_ID"
       ```
 

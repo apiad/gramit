@@ -121,8 +121,13 @@ async def main():
         print("CLI: Initializing Telegram application...")
         await application.initialize()
         print("CLI: Starting Telegram application (polling)...")
-        await application.updater.start_polling()
-        print("CLI: Telegram application started.")
+        try:
+            await application.updater.start_polling()
+            print("CLI: Telegram application started.")
+        except Exception as e:
+            print(f"CLI: Error starting Telegram polling: {e}")
+            await sender(f"Error starting Telegram bot: {e}. Please check your token.")
+            return # Exit if polling fails
 
         # Send initial message
         initial_message = (

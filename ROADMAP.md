@@ -6,17 +6,17 @@ This document outlines the development plan for Gramit, based on `DESIGN.md v2.1
 
 The goal of this phase is to set up a clean, professional Python project structure.
 
-*   [ ] Initialize the project with `uv`.
-*   [ ] Define project metadata and dependencies in `pyproject.toml`.
-*   [ ] Use `uv add` to bring in initial dependencies:
-    *   [ ] `python-dotenv` (for configuration)
-    *   [ ] `pyte` (for TUI mode screen emulation)
-    *   [ ] `python-telegram-bot` (for Telegram API interaction)
-    *   [ ] `pytest` and `pytest-asyncio` (for testing)
-*   [ ] Create the basic source directory structure: `src/gramit/`.
-*   [ ] Create the basic test directory structure: `tests/`.
-*   [ ] Add initial empty files for core components (`orchestrator.py`, `router.py`, `telegram.py`, etc.) to `src/gramit/`.
-*   [ ] Configure `pytest` in `pyproject.toml` or `pytest.ini`.
+*   [x] Initialize the project with `uv`.
+*   [x] Define project metadata and dependencies in `pyproject.toml`.
+*   [x] Use `uv add` to bring in initial dependencies:
+    *   [x] `python-dotenv` (for configuration)
+    *   [x] `pyte` (for TUI mode screen emulation)
+    *   [x] `python-telegram-bot` (for Telegram API interaction)
+    *   [x] `pytest` and `pytest-asyncio` (for testing)
+*   [x] Create the basic source directory structure: `src/gramit/`.
+*   [x] Create the basic test directory structure: `tests/`.
+*   [x] Add initial empty files for core components (`orchestrator.py`, `router.py`, `telegram.py`, etc.) to `src/gramit/`.
+*   [x] Configure `pytest` in `pyproject.toml` or `pytest.ini`.
 
 ## Phase 2: The PTY Orchestrator
 

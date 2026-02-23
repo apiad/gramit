@@ -23,6 +23,35 @@ class Orchestrator:
         self._pid: int | None = None
         self._master_fd: int | None = None
 
+    async def read(self, max_bytes: int) -> str:
+        """
+        Reads data from the child process's stdout.
+
+        Args:
+            max_bytes: The maximum number of bytes to read.
+
+        Returns:
+            The data read from stdout as a string.
+        """
+        if self._master_fd is None:
+            return ""
+        
+        loop = asyncio.get_running_loop()
+        data = await loop.run_in_executor(None, os.read, self._master_fd, max_bytes)
+        return data.decode('utf-8', errors='replace')
+
+    async def write(self, data: str):
+        """
+        Writes data to the child process's stdin.
+
+        Args:
+            data: The string data to write.
+        """
+        if self._master_fd is not None:
+            encoded_data = data.encode('utf-8')
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, os.write, self._master_fd, encoded_data)
+
     async def start(self) -> int:
         """
         Spawns the child process in a new PTY.

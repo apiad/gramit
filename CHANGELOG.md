@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.1]
 
 ### Added
+- `--register` mode to easily find a user's chat ID.
+- Support for `GRAMIT_CHAT_ID` environment variable as an alternative to `--chat-id`.
 - Main application entrypoint (`cli.py`) to integrate all components.
 - `InputRouter` to handle and authorize incoming Telegram messages.
 - `OutputRouter` to process and send output in line-buffered mode.

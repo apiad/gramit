@@ -52,6 +52,6 @@ async def test_orchestrator_read_from_stdout():
     output = await orchestrator.read(1024)
 
     # The output from the PTY includes the command and a carriage return/newline
-    assert "hello from stdout" in output
+    assert b"hello from stdout" in output
 
     await orchestrator.shutdown()

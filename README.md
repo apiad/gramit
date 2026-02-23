@@ -30,7 +30,9 @@ Gramit offers two powerful ways to bridge your terminal output to Telegram:
 2.  **External Stream Mode (`-o` / `--output-stream`):** For complex TUI applications where raw terminal output is "noisy" (filled with borders, colors, and ANSI codes), you can instruct Gramit to "tail" a clean side-log file instead.
 
 ### ⌨️ Key Shortcuts & Modifiers
+
 Interact with TUIs effortlessly using Telegram commands (use spaces between modifiers and keys):
+
 -   **Special Keys:** `/enter`, `/esc`, `/t` (Tab), `/b` (Backspace), `/d` (Delete).
 -   **Arrow Keys:** `/up`, `/down`, `/left`, `/right`.
 -   **Modifiers:**
@@ -58,14 +60,17 @@ Gramit isn't just a blind pipe; it respects your terminal:
 
 ## 💡 Pro Use Case: Gemini CLI
 
-Interactive AI CLIs are the perfect companions for Gramit. Here is how to set up **Gemini CLI** for an optimal remote experience:
+Interactive AI CLIs are the perfect companions for Gramit. Here is how to set up **Gemini CLI** for an optimal remote experience.
 
-1.  **Instruct the AI:** Add a rule to your `GEMINI.md` or system prompt: *"Log all final responses into a file named gemini.log"*.
-2.  **Launch with Gramit:**
-    ```sh
-    gramit -o gemini.log gemini
-    ```
-3.  **The Result:** You see the full, beautiful TUI locally if you are at your desk. When you're away, you send prompts via Telegram, and Gramit tails the clean `gemini.log` to send the AI's responses back to you.
+```sh
+gramit -o gemini.log gemini "In this section
+log all intermediate thoughts and final responses
+to gemini.log; acknowledge, log, and wait for my command"
+```
+
+You will see the full, beautiful TUI locally if you are at your desk. When you're away, you send prompts via Telegram, and Gramit tails the clean `gemini.log` to send the AI's responses back to you.
+
+For a more persistent solution, consider adding that instruction to your `GEMINI.md` or `AGENT.md`.
 
 ---
 

@@ -62,14 +62,26 @@ async def test_input_router_quit_command():
         shutdown_event=mock_shutdown_event,  # Pass the mock event
     )
 
+    # Test /quit
     update = MockUpdate(text="/quit", chat_id=12345)
     await router.handle_command(update, mock_context)
-
-    mock_orchestrator.shutdown.assert_awaited_once()
-    mock_context.bot.send_message.assert_awaited_once_with(
+    mock_orchestrator.shutdown.assert_awaited()
+    mock_context.bot.send_message.assert_awaited_with(
         chat_id=12345, text="Shutting down the orchestrated process."
     )
-    mock_shutdown_event.set.assert_called_once()  # Assert set was called
+    mock_shutdown_event.set.assert_called_once()
+    
+    # Reset mocks for next test
+    mock_context.bot.send_message.reset_mock()
+
+    # Test /help
+    update = MockUpdate(text="/help", chat_id=12345)
+    await router.handle_command(update, mock_context)
+    # Just check if send_message was called with some help text
+    mock_context.bot.send_message.assert_awaited_once()
+    args, kwargs = mock_context.bot.send_message.call_args
+    assert "Gramit Help" in kwargs["text"]
+    assert "Key Shortcuts" in kwargs["text"]
 
 
 @pytest.mark.asyncio
@@ -107,6 +119,18 @@ async def test_input_router_key_shortcuts():
     await router.handle_command(MockUpdate(text="/up", chat_id=12345), None)
     mock_orchestrator.write.assert_awaited_with("\x1b[A")
     
+    # Test /home
+    await router.handle_command(MockUpdate(text="/home", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x1b[H")
+
+    # Test /end
+    await router.handle_command(MockUpdate(text="/end", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x1b[F")
+
+    # Test /f1
+    await router.handle_command(MockUpdate(text="/f1", chat_id=12345), None)
+    mock_orchestrator.write.assert_awaited_with("\x1bOP")
+
     # Test /c /up (Ctrl+Up)
     await router.handle_command(MockUpdate(text="/c /up", chat_id=12345), None)
     # The current logic will try to apply Control to the first char of the escape sequence

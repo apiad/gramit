@@ -23,7 +23,7 @@ class Orchestrator:
         self._pid: int | None = None
         self._master_fd: int | None = None
 
-    async def read(self, max_bytes: int) -> str:
+    async def read(self, max_bytes: int) -> bytes:
         """
         Reads data from the child process's stdout.
 
@@ -31,24 +31,26 @@ class Orchestrator:
             max_bytes: The maximum number of bytes to read.
 
         Returns:
-            The data read from stdout as a string.
+            The data read from stdout as bytes.
         """
         if self._master_fd is None:
-            return ""
+            return b""
 
         loop = asyncio.get_running_loop()
-        data = await loop.run_in_executor(None, os.read, self._master_fd, max_bytes)
-        return data.decode("utf-8", errors="replace")
+        return await loop.run_in_executor(None, os.read, self._master_fd, max_bytes)
 
-    async def write(self, data: str):
+    async def write(self, data: str | bytes):
         """
         Writes data to the child process's stdin.
 
         Args:
-            data: The string data to write.
+            data: The string or bytes data to write.
         """
         if self._master_fd is not None:
-            encoded_data = data.encode("utf-8")
+            if isinstance(data, str):
+                encoded_data = data.encode("utf-8")
+            else:
+                encoded_data = data
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, os.write, self._master_fd, encoded_data)
 
@@ -64,8 +66,13 @@ class Orchestrator:
         import struct
         import fcntl
         import termios
+        import sys
         
-        cols, rows = shutil.get_terminal_size()
+        # Try to get size from stdout/stdin
+        try:
+            cols, rows = shutil.get_terminal_size()
+        except Exception:
+            cols, rows = 80, 24
 
         pid, master_fd = pty.fork()
 
@@ -89,7 +96,7 @@ class Orchestrator:
             self._pid = pid
             self._master_fd = master_fd
             
-            # Set initial size
+            # Set initial size explicitly on the master FD
             try:
                 winsize = struct.pack("HHHH", rows, cols, 0, 0)
                 fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
@@ -109,8 +116,10 @@ class Orchestrator:
         import struct
         import fcntl
         import termios
+        import sys
 
         try:
+            # Use sys.stdout for size as it's most likely the TTY
             cols, rows = shutil.get_terminal_size()
             winsize = struct.pack("HHHH", rows, cols, 0, 0)
             fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.0.1]
 
 ### Added
+- Initial and goodbye messages sent to Telegram upon gramit startup/shutdown.
+- `/quit` Telegram command to gracefully terminate the orchestrated process.
 - `examples/reverse_echo.py` script for interactive testing.
 - Console script `gramit` for easier execution.
 - `--register` mode to easily find a user's chat ID.

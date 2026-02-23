@@ -1,6 +1,6 @@
 [project]
 name = "gramit"
-version = "0.4.4"
+version = "0.4.5"
 description = "A tool to bridge local CLI applications with a remote Telegram interface."
 authors = [{ name = "Alejandro Piad", email = "alepiad@gmail.com" }]
 readme = "README.md"

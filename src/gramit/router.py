@@ -127,7 +127,8 @@ class OutputRouter:
                 try:
                     # FileTailer.read_new yields chunks of text
                     async for data in self._tailer.read_new(self._orchestrator):
-                        await self._handle_new_data(data)
+                        # File stream goes to Telegram only (don't mirror to avoid cluttering TUI)
+                        await self._handle_new_data(data, telegram_only=True)
                 except asyncio.CancelledError:
                     pass
                 finally:
@@ -146,6 +147,7 @@ class OutputRouter:
                             await asyncio.sleep(0.01)
                             continue
                         
+                        # In standard mode, we both mirror and send to Telegram
                         await self._handle_new_data(data)
 
                     except asyncio.CancelledError:
@@ -173,13 +175,13 @@ class OutputRouter:
             if self._mirror:
                 self._restore_terminal()
 
-    async def _handle_new_data(self, data: str | bytes):
+    async def _handle_new_data(self, data: str | bytes, mirror_only: bool = False, telegram_only: bool = False):
         """
         Handles incoming data by appending it to buffers and triggering
         flushes for both mirror and Telegram.
         """
         # 1. Local Mirror (accumulate as bytes and debounce)
-        if self._mirror:
+        if self._mirror and not telegram_only:
             if isinstance(data, str):
                 self._mirror_buffer += data.encode('utf-8', errors='replace')
             else:
@@ -187,16 +189,17 @@ class OutputRouter:
             self._schedule_mirror_flush()
             
         # 2. Telegram (safe chunks only)
-        if isinstance(data, bytes):
-            # Decode for Telegram processing
-            text = data.decode('utf-8', errors='replace')
-        else:
-            text = data
+        if not mirror_only:
+            if isinstance(data, bytes):
+                # Decode for Telegram processing
+                text = data.decode('utf-8', errors='replace')
+            else:
+                text = data
 
-        self._buffer += text
-        safe_chunk = self._extract_safe_chunk()
-        if safe_chunk:
-            await self._debouncer.push(safe_chunk)
+            self._buffer += text
+            safe_chunk = self._extract_safe_chunk()
+            if safe_chunk:
+                await self._debouncer.push(safe_chunk)
 
     def _schedule_mirror_flush(self):
         """
@@ -346,7 +349,8 @@ class OutputRouter:
                     await asyncio.sleep(0.05)
                     continue
                 
-                await self._handle_new_data(data)
+                # Drain PTY is for local mirroring only when tailing a file
+                await self._handle_new_data(data, mirror_only=True)
             except (asyncio.CancelledError, OSError, EOFError):
                 break
             except Exception:

@@ -5,13 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.4.4] - 2026-02-23
+## [v0.4.5] - 2026-02-23
 
 ### Fixed
-- **Mirror Mode Crash:** Fixed a `TypeError` in `OutputRouter` where `bytes` from the PTY were being incorrectly concatenated with a string buffer.
-- **TUI Performance:** Optimized local input handling by reading in chunks instead of one byte at a time, significantly improving responsiveness for mouse-heavy TUIs.
-- **Flicker Mitigation:** Increased mirror debounce interval to 40ms (approx. 25fps) and moved to a consistent `bytes` buffer for the local mirror to minimize rendering glitches.
-- **Terminal Stability:** Refactored `_prepare_terminal` and `_restore_terminal` to use direct `os.write` and handle environments where `sys.stdin.fileno()` is unavailable (e.g., during tests).
+- **Output Isolation:** Fixed a bug where TUI/PTY output was incorrectly being sent to Telegram even when `--output-stream` was active. Now, in output-stream mode, PTY data is strictly for local mirroring, and only the tailed file content is bridged to Telegram.
+
+## [v0.4.4] - 2026-02-23
 
 ## [v0.4.3] - 2026-02-23
 

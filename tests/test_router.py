@@ -43,3 +43,29 @@ async def test_output_router_line_mode():
         "hello world\nthis is a test\nand another line"
     )
 
+
+@pytest.mark.asyncio
+async def test_output_router_handles_quick_exit():
+    """
+    Tests that the OutputRouter correctly flushes output from a process
+    that exits immediately after writing.
+    """
+    mock_orchestrator = MagicMock()
+    mock_sender = AsyncMock()
+
+    # Simulate a process that writes "error" and immediately returns EOF
+    mock_orchestrator.read = AsyncMock(side_effect=["error: command not found\n", ""])
+
+    router = OutputRouter(
+        orchestrator=mock_orchestrator,
+        sender=mock_sender,
+        mode="line",
+        debounce_interval=0.1,
+    )
+
+    # The start method should now handle the entire lifecycle
+    await router.start()
+
+    # The final flush should have been called
+    mock_sender.assert_awaited_once_with("error: command not found")
+

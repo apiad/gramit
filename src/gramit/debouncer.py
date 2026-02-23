@@ -31,13 +31,26 @@ class AsyncDebouncer:
         """
         Pushes an item into the debouncer buffer and resets the flush timer.
         """
-        # If there's a pending flush task, cancel it
         if self._task:
             self._task.cancel()
 
         self._buffer.append(item)
         # Schedule a new flush task
         self._task = asyncio.create_task(self._wait_and_flush())
+
+    async def flush(self):
+        """
+        Immediately flushes the buffer, cancelling any pending flush task.
+        """
+        if self._task:
+            self._task.cancel()
+            self._task = None # Clear the task reference
+
+        if self._buffer:
+            # Directly call the flush callback with the current buffer
+            items_to_flush = self._buffer[:]
+            self._buffer.clear()
+            await self._flush_callback(items_to_flush)
 
     async def _wait_and_flush(self):
         """

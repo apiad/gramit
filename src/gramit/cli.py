@@ -115,12 +115,11 @@ async def main():
 
         output_task = asyncio.create_task(output_router.start())
 
-        # Wait for the orchestrated process to finish
-        while orchestrator.is_alive():
-            await asyncio.sleep(1)
+        # Wait for the output router to finish, which happens when the process
+        # terminates and all its output has been processed.
+        await output_task
 
         print("Orchestrated process has terminated.")
-        output_task.cancel()
         await application.stop()
 
 

@@ -23,19 +23,23 @@ Gramit is the most beautiful, robust, and secure way to bridge your local CLI ap
 ## 🌟 Key Features
 
 ### 🚀 Dual Output Modes
+
 Gramit offers two powerful ways to bridge your terminal output to Telegram:
 
 1.  **Standard Mode (IO):** Directly captures the `stdout` of your process via a Pseudo-Terminal (PTY). Perfect for line-based apps and scripts. Gramit intelligently aggregates and debounces output to ensure you don't get spammed with dozens of tiny messages.
-2.  **External Stream Mode (`-o` / `--output-stream`):** For complex TUI applications where raw terminal output is "noisy" (filled with borders, colors, and ANSI codes), you can instruct Gramit to "tail" a clean side-log file instead. 
+2.  **External Stream Mode (`-o` / `--output-stream`):** For complex TUI applications where raw terminal output is "noisy" (filled with borders, colors, and ANSI codes), you can instruct Gramit to "tail" a clean side-log file instead.
 
 ### 🖥️ Native Terminal Experience
+
 Gramit isn't just a blind pipe; it respects your terminal:
+
 -   **Terminal Size Inheritance:** Child processes automatically inherit the size of your host terminal on startup.
 -   **Dynamic Resizing:** Resize your local terminal window, and Gramit propagates the change to the child process instantly (`SIGWINCH` support).
 -   **Local Mirroring:** See the TUI running locally in your terminal while you interact with it remotely via Telegram.
 -   **Robust Cleanup:** When you exit, Gramit performs a full terminal restoration—clearing the screen, homing the cursor, disabling mouse tracking, and exiting alternate screen buffers. No more "broken" terminals!
 
 ### 🔒 Built-in Security
+
 -   **Locked-down by Default:** Only messages from your specific `chat_id` are processed.
 -   **Credential Safety:** Tokens are handled via environment variables or secured `.env` files.
 -   **Rate Limiting:** Protects your bot and machine from memory exhaustion and API flooding.
@@ -113,9 +117,9 @@ gramit -o tui_echo.log python examples/tui_echo_with_log.py
 
 ## 🐧 Platform Support & Contributions
 
-Gramit is **currently only tested on Linux (bash)**. 
+Gramit is **currently only tested on Linux (bash)**.
 
-Because it relies on native PTY features (`os.forkpty`, `termios`, `fcntl`), behavior on macOS or Windows (WSL) may vary. 
+Because it relies on native PTY features (`os.forkpty`, `termios`, `fcntl`), behavior on macOS or Windows (WSL) may vary.
 
 **Contributions are highly welcomed!** If you've tested Gramit on other OSes or terminals and found bugs (or fixes), please open an issue or a PR.
 

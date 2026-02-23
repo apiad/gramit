@@ -1,5 +1,4 @@
 import asyncio
-import os
 import pytest
 from gramit.router import FileTailer
 

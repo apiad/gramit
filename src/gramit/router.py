@@ -188,6 +188,11 @@ class OutputRouter:
         sys.stdout.write(sequences)
         sys.stdout.flush()
         
+        # Give the terminal emulator a tiny bit of time to process the 
+        # sequences and stop sending events before we flush.
+        import time
+        time.sleep(0.1)
+
         # Flush stdin to get rid of any mouse movement/click sequences 
         # that the terminal sent while gramit was running.
         import termios

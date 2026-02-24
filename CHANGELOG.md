@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Custom Workflow Commands:**
+    - Added the `/commit` command to `GEMINI.md`, enabling Gemini CLI to autonomously analyze, group, and commit changes using Conventional Commits best practices (`feat`, `fix`, `docs`, etc.).
+- **Automated Record Keeping:**
+    - Enabled the `AfterAgent` hook in `.gemini/settings.json` to automatically prompt the agent to update `CHANGELOG.md` and `journal/` after successful code modifications.
+    - Implemented and refined `gemini_logger.py` hook logic to detect significant repository changes using `git status` while avoiding infinite loops.
 - **Documentation Enhancements:**
     - Added a comprehensive "Magical Use Cases" section to `README.md` featuring diverse scenarios for DevOps, AI agents (monitoring while cooking), and mobile productivity (Obsidian integration).
     - Added PyPI version and monthly download count badges to the top of `README.md`.

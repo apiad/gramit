@@ -6,7 +6,7 @@ import subprocess
 from datetime import datetime
 
 # Configuration
-LOG_FILE = "gemini.log"
+LOG_FILE = os.getenv("GEMINI_LOG_FILE", "gemini.log")
 
 def run_gemini_prompt(prompt, input_text=None):
     """Runs gemini --prompt with the given prompt and optional input text."""

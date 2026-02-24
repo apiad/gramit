@@ -35,16 +35,15 @@ class AsyncDebouncer:
         Pushes an item into the debouncer buffer and resets the flush timer.
         If the buffer reaches max_buffer_size, it flushes immediately.
         """
-        if self._task:
-            self._task.cancel()
-
         self._buffer.append(item)
 
         if len(self._buffer) >= self._max_buffer_size:
             # Force immediate flush if buffer is full
             await self.flush()
         else:
-            # Schedule a new flush task
+            # Re-schedule the flush task (resetting the timer)
+            if self._task:
+                self._task.cancel()
             self._task = asyncio.create_task(self._wait_and_flush())
 
     async def flush(self):
@@ -53,10 +52,9 @@ class AsyncDebouncer:
         """
         if self._task:
             self._task.cancel()
-            self._task = None  # Clear the task reference
+            self._task = None
 
         if self._buffer:
-            # Directly call the flush callback with the current buffer
             items_to_flush = self._buffer[:]
             self._buffer.clear()
             await self._flush_callback(items_to_flush)

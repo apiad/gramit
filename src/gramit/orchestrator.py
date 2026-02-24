@@ -85,7 +85,12 @@ class Orchestrator:
                     if not shutil.which(cmd) and os.path.exists(cmd):
                         self._command[0] = os.path.join(os.curdir, cmd)
                 
-                os.execvp(self._command[0], self._command)
+                # Security: Scrub sensitive environment variables before execvp
+                env = os.environ.copy()
+                env.pop("GRAMIT_TELEGRAM_TOKEN", None)
+                env.pop("GRAMIT_CHAT_ID", None)
+                
+                os.execvpe(self._command[0], self._command, env)
             except OSError as e:
                 # If execvp fails, we need to exit the child process
                 print(f"FATAL: execvp failed: {e}")

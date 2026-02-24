@@ -34,8 +34,16 @@ class InputRouter:
         if chat_id not in self._authorized_chat_ids:
             return
 
+        # Security: Basic sanitization of input text
+        # Filter out control characters that might be used for escape sequence injection,
+        # but allow standard printable characters and common TUI needs.
+        sanitized_text = "".join(c for c in text if c.isprintable() or c in "\n\r\t")
+        
+        if not sanitized_text:
+            return
+
         # Many TUIs and interactive shells expect \r for Enter
-        await self._orchestrator.write(text + "\r")
+        await self._orchestrator.write(sanitized_text + "\r")
 
     async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """

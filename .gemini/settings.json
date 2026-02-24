@@ -55,7 +55,13 @@
     "AfterAgent": [
       {
         "matcher": "*",
+        "sequential": true,
         "hooks": [
+          {
+            "name": "run-make-validation",
+            "type": "command",
+            "command": "python3 .gemini/hooks/check_make.py"
+          },
           {
             "name": "update-journal-and-changelog",
             "type": "command",

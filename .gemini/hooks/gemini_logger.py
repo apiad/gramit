@@ -86,7 +86,7 @@ def main():
 
         print(json.dumps(output))
 
-    except Exception as e:
+    except Exception:
         # Fallback to allow if anything fails
         print(json.dumps({"decision": "allow"}))
 

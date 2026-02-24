@@ -1,5 +1,7 @@
 # Gramit: The Ultimate Telegram-to-Terminal Connector
 
+[![PyPI Version](https://img.shields.io/pypi/v/gramit.svg)](https://pypi.org/project/gramit/)
+[![Downloads](https://img.shields.io/pypi/dm/gramit.svg)](https://pypi.org/project/gramit/)
 [![Run Tests](https://github.com/apiad/gramit/actions/workflows/tests.yaml/badge.svg)](https://github.com/apiad/gramit/actions/workflows/tests.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
@@ -59,19 +61,40 @@ Gramit isn't just a blind pipe; it respects your terminal:
 
 ---
 
-## 💡 Pro Use Case: Gemini CLI
+## 🌈 Magical Use Cases
 
-Interactive AI CLIs are the perfect companions for Gramit. Here is how to set up **Gemini CLI** for an optimal remote experience.
+Gramit isn't just a bridge; it's a superpower for your terminal. Here is how you can use it to transform your workflow.
 
-```sh
-gramit -o gemini.log gemini "In this section
-log all intermediate thoughts and final responses
-to gemini.log; acknowledge, log, and wait for my command"
-```
+### 👨‍🍳 The "Sous-Chef": Monitor Agents While Cooking
 
-You will see the full, beautiful TUI locally if you are at your desk. When you're away, you send prompts via Telegram, and Gramit tails the clean `gemini.log` to send the AI's responses back to you.
+You've started a complex, long-running task—maybe a large codebase refactor with **Gemini CLI** or a 20-minute production build. You're hungry, but you don't want to stay tethered to your desk.
 
-For a more persistent solution, consider adding that instruction to your `GEMINI.md` or `AGENT.md`.
+*   **The Workflow:** Start the task with Gramit.
+*   **The Freedom:** Head to the kitchen. While your risotto simmers, your phone pings you with the agent's progress. If it hits a snag and asks for permission to delete a file, you just type `y` in Telegram and get back to your meal.
+
+### 🚗 The Mobile Command Center: DevOps from the Back of an Uber
+
+Production is down, and you're in a taxi. You don't want to wrestle with a mobile SSH client's tiny keyboard and lack of functional keys.
+
+*   **The Workflow:** `gramit ssh production-server`
+*   **The Freedom:** Use Gramit's shortcut commands. Need to check `top`? Just send the message. Need to exit a stuck process? `/c c`. Need to navigate a TUI logs viewer? `/up` and `/down`. You're a sysadmin with a thumb and a chat app.
+
+### 🧠 The Second Brain: Telegram ⮕ Gemini ⮕ Obsidian
+
+You're at the grocery store and have a breakthrough idea for your next project. You want it processed by an AI and saved directly into your Obsidian vault.
+
+*   **The Workflow:**
+    ```sh
+    gramit -o ~/Documents/Obsidian/Inbox.md gemini "Act as my research assistant. Append your thoughts to the log."
+    ```
+*   **The Freedom:** Send your raw idea to the bot. Gemini processes it, expands on it, and Gramit "tails" that output directly into your Obsidian inbox file. By the time you get home, your "Second Brain" is already updated.
+
+### ☕ The "Espresso" Build: Grab Coffee, Stay Informed
+
+Some builds take just long enough to be annoying but not long enough to start a new task.
+
+*   **The Workflow:** `gramit make build-all`
+*   **The Freedom:** Walk to the breakroom. When the build finishes (or fails with a wall of red text), you'll see the exact error message on your phone. You can even run `make clean` remotely to reset before you walk back.
 
 ---
 

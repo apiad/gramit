@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Documentation Enhancements:**
+    - Added a comprehensive "Magical Use Cases" section to `README.md` featuring diverse scenarios for DevOps, AI agents (monitoring while cooking), and mobile productivity (Obsidian integration).
+    - Added PyPI version and monthly download count badges to the top of `README.md`.
+
 ### Changed
 - **Telegram Output Formatting:**
     - Removed automatic code block wrapping (triple backticks) from Telegram messages to support standard Markdown rendering.

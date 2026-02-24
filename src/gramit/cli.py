@@ -36,13 +36,10 @@ async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Global reference for the output router to allow cleanup in case of KeyboardInterrupt
 _current_output_router = None
 
-async def main():
+def get_parser():
     """
-    Main entrypoint for the gramit application.
+    Returns the argument parser for gramit.
     """
-    global _current_output_router
-    load_dotenv()
-
     parser = argparse.ArgumentParser(
         description="Gramit: Bridge a local CLI application with a remote Telegram interface."
     )
@@ -71,10 +68,11 @@ async def main():
     parser.set_defaults(mirror=True)
     parser.add_argument(
         "-e",
+        "--e",
         "--enter",
         dest="enter",
         action="store_true",
-        help="Inject an /enter (\\r) after each Telegram message. Enabled by default.",
+        help="Inject an /enter (\\r) after each Telegram message with a minimum delay (200ms). Disabled by default. Useful for complex TUIs that require an explicit Enter key press to trigger actions.",
     )
     parser.add_argument(
         "--no-enter",
@@ -82,7 +80,7 @@ async def main():
         dest="enter",
         help="Disable injecting an /enter after each Telegram message.",
     )
-    parser.set_defaults(enter=True)
+    parser.set_defaults(enter=False)
     parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
@@ -90,7 +88,17 @@ async def main():
     )
     # --line-mode will be used in a future phase
     parser.add_argument("--line-mode", action="store_true", help="Enable line mode.")
+    return parser
 
+
+async def main():
+    """
+    Main entrypoint for the gramit application.
+    """
+    global _current_output_router
+    load_dotenv()
+
+    parser = get_parser()
     args = parser.parse_args()
     token = os.getenv("GRAMIT_TELEGRAM_TOKEN")
     if not token:

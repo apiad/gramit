@@ -1,6 +1,6 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-import asyncio  # New import
+import asyncio
 
 from gramit.telegram import InputRouter
 
@@ -26,21 +26,27 @@ async def test_input_router_handles_authorized_message():
     """
     mock_orchestrator = MagicMock()
     mock_orchestrator.write = AsyncMock()
-    mock_shutdown_event = AsyncMock(spec=asyncio.Event)  # New mock
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)
 
     router = InputRouter(
         orchestrator=mock_orchestrator,
         authorized_chat_ids=[12345],
-        shutdown_event=mock_shutdown_event,  # Pass the mock event
+        shutdown_event=mock_shutdown_event,
     )
 
     update = MockUpdate(text="ls -l", chat_id=12345)
-    await router.handle_message(update, context=None)
-
-    # Expect the text to be written to the orchestrator with a carriage return (\r)
-    mock_orchestrator.write.assert_awaited_once_with("ls -l\r")
     
-    mock_shutdown_event.set.assert_not_called()  # Should not be called
+    # We patch asyncio.sleep to avoid waiting in tests
+    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        await router.handle_message(update, context=None)
+        
+        # Expect two separate calls now: text, then \r after sleep
+        assert mock_orchestrator.write.call_count == 2
+        mock_orchestrator.write.assert_any_call("ls -l")
+        mock_orchestrator.write.assert_any_call("\r")
+        mock_sleep.assert_awaited_once_with(0.2)
+    
+    mock_shutdown_event.set.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -54,12 +60,12 @@ async def test_input_router_quit_command():
 
     mock_context = MagicMock()
     mock_context.bot.send_message = AsyncMock()
-    mock_shutdown_event = AsyncMock(spec=asyncio.Event)  # New mock
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)
 
     router = InputRouter(
         orchestrator=mock_orchestrator,
         authorized_chat_ids=[12345],
-        shutdown_event=mock_shutdown_event,  # Pass the mock event
+        shutdown_event=mock_shutdown_event,
     )
 
     # Test /quit
@@ -133,11 +139,38 @@ async def test_input_router_key_shortcuts():
     await router.handle_command(MockUpdate(text="/f1", chat_id=12345), None)
     mock_orchestrator.write.assert_awaited_with("\x1bOP")
 
-    # Test /c /up (Ctrl+Up)
-    await router.handle_command(MockUpdate(text="/c /up", chat_id=12345), None)
-    # The current logic will try to apply Control to the first char of the escape sequence
-    # which might not be perfectly standard for all combinations but matches the requested 
-    # extensible structure.
+
+@pytest.mark.asyncio
+async def test_input_router_multiline_message():
+    """
+    Tests that multi-line messages are handled correctly with inject_enter.
+    """
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.write = AsyncMock()
+    mock_shutdown_event = MagicMock(spec=asyncio.Event)
+
+    # Test with inject_enter=True (default)
+    router = InputRouter(
+        orchestrator=mock_orchestrator,
+        authorized_chat_ids=[12345],
+        shutdown_event=mock_shutdown_event,
+        inject_enter=True,
+    )
+    
+    update = MockUpdate(text="line1\nline2", chat_id=12345)
+    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        await router.handle_message(update, context=None)
+        assert mock_orchestrator.write.call_count == 2
+        mock_orchestrator.write.assert_any_call("line1\nline2")
+        mock_orchestrator.write.assert_any_call("\r")
+        mock_sleep.assert_awaited_once_with(0.2)
+    
+    mock_orchestrator.write.reset_mock()
+    
+    # Test with inject_enter=False
+    router._inject_enter = False
+    await router.handle_message(update, context=None)
+    mock_orchestrator.write.assert_awaited_once_with("line1\nline2")
 
 
 @pytest.mark.asyncio
@@ -147,12 +180,12 @@ async def test_input_router_ignores_unauthorized_message():
     """
     mock_orchestrator = MagicMock()
     mock_orchestrator.write = AsyncMock()
-    mock_shutdown_event = AsyncMock(spec=asyncio.Event)  # New mock
+    mock_shutdown_event = AsyncMock(spec=asyncio.Event)
 
     router = InputRouter(
         orchestrator=mock_orchestrator,
-        authorized_chat_ids=[12345],  # Authorized user
-        shutdown_event=mock_shutdown_event,  # Pass the mock event
+        authorized_chat_ids=[12345],
+        shutdown_event=mock_shutdown_event,
     )
 
     # Message from a different user
@@ -160,4 +193,4 @@ async def test_input_router_ignores_unauthorized_message():
     await router.handle_message(update, context=None)
 
     mock_orchestrator.write.assert_not_awaited()
-    mock_shutdown_event.set.assert_not_called()  # Should not be called
+    mock_shutdown_event.set.assert_not_called()

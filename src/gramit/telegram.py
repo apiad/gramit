@@ -44,12 +44,15 @@ class InputRouter:
         if not sanitized_text:
             return
 
-        # Many TUIs and interactive shells expect \r for Enter
-        to_send = sanitized_text
-        if self._inject_enter:
-            to_send += "\r"
-            
-        await self._orchestrator.write(to_send)
+        # Send the main text first.
+        await self._orchestrator.write(sanitized_text)
+        
+        # If auto-enter is enabled, wait a short duration before sending the carriage return.
+        # Some TUIs may need time to process the input buffer before seeing the 
+        # Enter key to correctly trigger an action.
+        if self._inject_enter and not sanitized_text.endswith(("\r", "\n")):
+            await asyncio.sleep(0.2)
+            await self._orchestrator.write("\r")
 
     async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """

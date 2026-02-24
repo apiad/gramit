@@ -59,7 +59,6 @@ async def test_output_stream_bypasses_pty_for_telegram():
     Verifies that in output-stream mode, PTY data is NOT sent to Telegram,
     but the file content IS sent.
     """
-    from gramit.router import FileTailer
     
     r_fd, w_fd = os.pipe()
     try:

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Validation Hook:**
+    - Added a new `AfterAgent` hook `run-make-validation` that automatically runs `make` (linting and tests) after every agent turn.
+    - Configured `AfterAgent` hooks to run sequentially using `sequential: true` in `.gemini/settings.json`, ensuring validation occurs before record-keeping.
 - **Custom Workflow Commands:**
     - Added the `/commit` command to `GEMINI.md`, enabling Gemini CLI to autonomously analyze, group, and commit changes using Conventional Commits best practices (`feat`, `fix`, `docs`, etc.).
 - **Automated Record Keeping:**
@@ -25,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Removed the logic that escaped triple backticks in output messages.
 
 ### Fixed
+- **Code Quality:**
+    - Fixed multiple lint errors across the codebase, including unused imports (`sys`, `FileTailer`), unused variables, and an undefined name (`io`) in `src/gramit/router.py`.
 - **Gemini Logger Hook:**
     - Fixed a bug where `transcript_data` was being treated as a `list` when it is now provided as a `dict` by the CLI, causing the hook to return early.
     - Implemented robust data extraction to locate conversation messages within the `messages`, `transcript`, or `history` keys of the transcript dictionary.

@@ -168,14 +168,14 @@ async def main():
             await sender(initial_message)
 
             await orchestrator.start()
-            
+
             # Handle window resize and shutdown signals
             import signal
             loop = asyncio.get_running_loop()
-            
+
             def handle_shutdown():
                 shutdown_event.set()
-                
+
             try:
                 loop.add_signal_handler(signal.SIGWINCH, orchestrator.resize)
                 # Register SIGINT and SIGTERM to set the shutdown_event
@@ -211,14 +211,14 @@ async def main():
                 # Ensure orchestrator and output_task are shut down gracefully
                 if orchestrator.is_alive():
                     await orchestrator.shutdown()
-                
+
                 if output_task and not output_task.done():
                     output_task.cancel()
                     try:
                         await output_task
                     except (asyncio.CancelledError, Exception):
                         pass
-                
+
                 # Check if we should send a goodbye message
                 if shutdown_event.is_set():
                     await sender("Gramit application was interrupted. Goodbye!")
@@ -240,7 +240,6 @@ async def main():
 
 
 def run():
-    """Sync entrypoint for the console script."""
     import signal
     import sys
 

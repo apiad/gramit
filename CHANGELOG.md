@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Removed the logic that escaped triple backticks in output messages.
 
 ### Fixed
+- **Terminal Restoration:**
+    - Fixed a bug where the terminal screen was not being cleared correctly on exit (via `/quit` or `Ctrl+C`).
+    - Added explicit clear screen (`\x1b[2J`) and cursor home (`\x1b[H`) sequences to `restore_terminal`.
+    - Refactored shutdown logic in `cli.py` to ensure the orchestrated process is terminated *before* terminal restoration, preventing lingering output from corrupting the screen.
+    - Added global orchestrator tracking to ensure immediate process termination even in synchronous signal handlers.
 - **Code Quality:**
     - Fixed multiple lint errors across the codebase, including unused imports (`sys`, `FileTailer`), unused variables, and an undefined name (`io`) in `src/gramit/router.py`.
 - **Gemini Logger Hook:**

@@ -5,10 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.4.5] - 2026-02-23
+## [v0.4.6] - 2026-02-23
 
 ### Fixed
-- **Output Isolation:** Fixed a bug where TUI/PTY output was incorrectly being sent to Telegram even when `--output-stream` was active. Now, in output-stream mode, PTY data is strictly for local mirroring, and only the tailed file content is bridged to Telegram.
+- **Gemini Logger Hook:** Fixed multiple bugs in the `gemini_logger.py` hook:
+    - Corrected an invalid date format (`%YY` -> `%Y`) in the session start header.
+    - Removed aggressive newline stripping from model response parts, preserving intended formatting.
+    - Fixed a bug where double newlines were being appended after every streaming chunk, causing fragmented log entries.
+    - The hook now correctly identifies the end of a model response (via `finishReason`) before appending paragraph separators.
+
+## [v0.4.5] - 2026-02-23
 
 ## [v0.4.4] - 2026-02-23
 

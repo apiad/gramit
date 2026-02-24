@@ -5,6 +5,7 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 
 Gramit is the most beautiful, robust, and secure way to bridge your local CLI applications with a remote Telegram interface. It allows you to run any command on your machine—from simple scripts to complex TUIs—and interact with it from anywhere in the world.
+<!-- Hook Testing v3 -->
 
 > [!CAUTION]
 > **SECURITY WARNING: REMOTE ACCESS RISK**

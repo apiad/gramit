@@ -1,5 +1,6 @@
 import asyncio
 from typing import List, Callable, Any, Coroutine
+from .utils import logger
 
 T = Any
 
@@ -7,7 +8,7 @@ T = Any
 class AsyncDebouncer:
     """
     A debouncer that collects items and flushes them in a batch after a
-    specified interval of inactivity.
+    specified interval of inactivity or when the buffer reaches a maximum size.
     """
 
     def __init__(
@@ -32,8 +33,13 @@ class AsyncDebouncer:
 
     async def push(self, item: T):
         """
-        Pushes an item into the debouncer buffer and resets the flush timer.
+        Pushes an item into the debouncer buffer. 
+        
         If the buffer reaches max_buffer_size, it flushes immediately.
+        Otherwise, it resets the flush timer.
+
+        Args:
+            item: The item to add to the buffer.
         """
         self._buffer.append(item)
 
@@ -44,7 +50,11 @@ class AsyncDebouncer:
             # Re-schedule the flush task (resetting the timer)
             if self._task:
                 self._task.cancel()
-            self._task = asyncio.create_task(self._wait_and_flush())
+            try:
+                self._task = asyncio.create_task(self._wait_and_flush())
+            except RuntimeError:
+                # Event loop might be closing
+                pass
 
     async def flush(self):
         """
@@ -57,14 +67,22 @@ class AsyncDebouncer:
         if self._buffer:
             items_to_flush = self._buffer[:]
             self._buffer.clear()
-            await self._flush_callback(items_to_flush)
+            try:
+                await self._flush_callback(items_to_flush)
+            except Exception as e:
+                logger.error(f"AsyncDebouncer flush callback failed: {e}")
 
     async def _wait_and_flush(self):
         """
-        Waits for the specified interval, then flushes the buffer.
+        Waits for the specified interval, then flushes the buffer if it hasn't 
+        been cancelled.
         """
-        await asyncio.sleep(self._interval)
-        items_to_flush = self._buffer[:]
-        self._buffer.clear()
-        await self._flush_callback(items_to_flush)
-        self._task = None
+        try:
+            await asyncio.sleep(self._interval)
+            await self.flush()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"AsyncDebouncer wait_and_flush encountered an error: {e}")
+        finally:
+            self._task = None

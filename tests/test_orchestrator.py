@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from gramit.orchestrator import Orchestrator
 
 
@@ -55,3 +56,20 @@ async def test_orchestrator_read_from_stdout():
     assert b"hello from stdout" in output
 
     await orchestrator.shutdown()
+
+@pytest.mark.asyncio
+async def test_orchestrator_resize():
+    """
+    Tests that the resize method correctly fetches new size and applies it.
+    """
+    orchestrator = Orchestrator(["/bin/ls"])
+    orchestrator._master_fd = 999
+    
+    with patch("gramit.orchestrator.get_terminal_size") as mock_get_size, \
+         patch("gramit.orchestrator.set_terminal_size") as mock_set_size:
+        
+        mock_get_size.return_value = (100, 50)
+        orchestrator.resize()
+        
+        mock_get_size.assert_called_once()
+        mock_set_size.assert_called_once_with(999, 100, 50)

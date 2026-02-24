@@ -25,6 +25,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Added a comprehensive "Magical Use Cases" section to `README.md` featuring diverse scenarios for DevOps, AI agents (monitoring while cooking), and mobile productivity (Obsidian integration).
     - Added PyPI version and monthly download count badges to the top of `README.md`.
 
+### Maintenance & Refactor
+- **Core Refactoring:**
+    - Extracted terminal size management and ANSI constants into a new `src/gramit/utils.py` to ensure consistency across the codebase.
+    - Refactored `OutputRouter.start` in `src/gramit/router.py` to use a cleaner, reader-based architecture for PTY and stdin monitoring.
+    - Simplified `Orchestrator.start` and added a dedicated `_prepare_child_process` method for better readability and easier testing.
+- **Documentation:**
+    - Added comprehensive, high-quality docstrings to all core functions and classes, including `AsyncDebouncer`, `OutputRouter`, and `Orchestrator`.
+    - Documented internal methods like `_handle_new_data` and `_extract_safe_chunk` to explain complex byte/string and ANSI handling.
+- **Reliability & Testing:**
+    - Added a robust `tests/test_utils.py` to verify terminal size fetching and shared utilities.
+    - Enhanced `tests/test_router.py` with edge-case tests for partial ANSI sequence splitting and complete sequence handling.
+    - Added "pressure" tests to `tests/test_debouncer.py` to verify immediate flushing when `max_buffer_size` is reached.
+    - Fixed a bug in `_extract_safe_chunk` where complete ANSI sequences followed by text were incorrectly buffered as partial.
+- **Observability:**
+    - Replaced project-wide `print` calls with a standard Python `logging` framework.
+    - Added a `-v` / `--verbose` CLI flag to enable debug-level logging.
+    - Audited and improved error handling across the project, replacing silent `except: pass` with targeted exceptions and debug logging.
+
 ### Changed
 - **Telegram Output Formatting:**
     - Removed automatic code block wrapping (triple backticks) from Telegram messages to support standard Markdown rendering.

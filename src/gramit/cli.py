@@ -1,6 +1,7 @@
 import os
 import asyncio
 import argparse
+import logging
 from dotenv import load_dotenv
 from telegram import Update, Bot
 from telegram.ext import (
@@ -13,13 +14,14 @@ from telegram.ext import (
 from .orchestrator import Orchestrator
 from .router import OutputRouter
 from .telegram import InputRouter
+from .utils import RESTORE_TERMINAL_SEQ, logger
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Log the error and send a telegram message to notify the developer."""
-    print(f"Error: {context.error}")
+    logger.error(f"Telegram error: {context.error}")
     if update:
-        print(f"Update: {update}")
+        logger.debug(f"Update that caused the error: {update}")
 
 
 async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -83,6 +85,12 @@ def get_parser():
     )
     parser.set_defaults(enter=False)
     parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging.",
+    )
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="The command to execute.",
@@ -101,6 +109,13 @@ async def main():
 
     parser = get_parser()
     args = parser.parse_args()
+    
+    # Configure logging level
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    
     token = os.getenv("GRAMIT_TELEGRAM_TOKEN")
     if not token:
         raise ValueError("GRAMIT_TELEGRAM_TOKEN environment variable not set.")
@@ -144,7 +159,10 @@ async def main():
     bot = Bot(token)
 
     async def sender(msg):
-        return await bot.send_message(chat_id=args.chat_id, text=msg, parse_mode="Markdown")
+        try:
+            return await bot.send_message(chat_id=args.chat_id, text=msg, parse_mode="Markdown")
+        except Exception as e:
+            logger.error(f"Failed to send Telegram message: {e}")
 
     input_router = InputRouter(
         orchestrator=orchestrator,
@@ -203,8 +221,6 @@ async def main():
 
             try:
                 loop.add_signal_handler(signal.SIGWINCH, orchestrator.resize)
-                # Register SIGINT and SIGTERM to set the shutdown_event
-                # This ensures we enter our cleanup logic gracefully
                 loop.add_signal_handler(signal.SIGINT, handle_shutdown)
                 loop.add_signal_handler(signal.SIGTERM, handle_shutdown)
             except (NotImplementedError, AttributeError):
@@ -253,17 +269,13 @@ async def main():
                     await sender("Orchestrated process has terminated. Goodbye!")
 
     except (KeyboardInterrupt, asyncio.CancelledError):
-        # Handle cases where asyncio.run might cancel the main task
         pass
-    except Exception as e:  # Catch any other exceptions
+    except Exception as e:
+        logger.error(f"Gramit encountered an unhandled exception: {e}")
         try:
             await sender(f"Gramit encountered an error: `{e}`. Shutting down.")
         except Exception:
-            print(f"Gramit encountered a fatal error: {e}")
-    finally:
-        pass
-        # The async with application's __aexit__ handles Telegram app shutdown.
-        # We don't need to explicitly call application.stop() here.
+            pass
 
 
 def run():
@@ -283,6 +295,12 @@ def run():
         # 2. Then restore terminal
         if _current_output_router:
             _current_output_router.restore_terminal()
+        else:
+            # Fallback for when router isn't yet initialized
+            try:
+                os.write(sys.stdout.fileno(), RESTORE_TERMINAL_SEQ)
+            except Exception:
+                pass
         sys.exit(1)
 
     # Register basic signal handlers for sync cleanup
@@ -296,6 +314,5 @@ def run():
             print(f"Error: {e}")
     finally:
         # Final safety net for terminal restoration
-        # Note: main() already handles graceful shutdown of orchestrator
         if _current_output_router:
             _current_output_router.restore_terminal()

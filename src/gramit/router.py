@@ -6,6 +6,12 @@ from typing import Callable, Coroutine, Any, Optional
 
 from .orchestrator import Orchestrator
 from .debouncer import AsyncDebouncer
+from .utils import (
+    RESTORE_TERMINAL_SEQ,
+    CLEAR_SCREEN,
+    HOME_CURSOR,
+    logger,
+)
 
 # Regex for matching ANSI escape sequences (CSI, OSC, etc.)
 # This is a broad regex to capture most common sequences
@@ -18,6 +24,13 @@ class FileTailer:
     """
 
     def __init__(self, file_path: str, poll_interval: float = 0.1):
+        """
+        Initializes the FileTailer.
+
+        Args:
+            file_path: Path to the file to tail.
+            poll_interval: Interval in seconds to poll for new data.
+        """
         self._file_path = file_path
         self._poll_interval = poll_interval
         self._stop_event = asyncio.Event()
@@ -26,6 +39,9 @@ class FileTailer:
         """
         A generator that yields new content appended to the file.
         Wait for the file to be created if it doesn't exist yet.
+
+        Args:
+            orchestrator: The orchestrator whose process lifecycle we follow.
         """
         # Wait for file to exist OR process to die
         while not os.path.exists(self._file_path):
@@ -67,18 +83,22 @@ class FileTailer:
                         
                         yield data
                         last_pos = f.tell()
-            except Exception:
+            except Exception as e:
+                logger.debug(f"FileTailer encountered an error reading {self._file_path}: {e}")
                 await asyncio.sleep(self._poll_interval)
                 continue
 
     def stop(self):
+        """Stops the file tailing process."""
         self._stop_event.set()
 
 
 class OutputRouter:
     """
     Reads output from the orchestrator OR a file stream, processes it,
-    and sends it to the specified sender.
+    and sends it to the specified sender (Telegram).
+    
+    It also handles local terminal mirroring and input routing.
     """
 
     def __init__(
@@ -91,6 +111,18 @@ class OutputRouter:
         output_stream: Optional[str] = None,
         mirror: bool = True,
     ):
+        """
+        Initializes the OutputRouter.
+
+        Args:
+            orchestrator: The PTY orchestrator.
+            sender: Async function to send messages to Telegram.
+            mode: Routing mode (currently "line").
+            debounce_interval: Time to wait before flushing to Telegram.
+            max_buffer_lines: Max lines to buffer before forced Telegram flush.
+            output_stream: Path to a file to tail instead of PTY stdout.
+            mirror: Whether to mirror output to the local terminal.
+        """
         self._orchestrator = orchestrator
         self._sender = sender
         self._mode = mode
@@ -111,109 +143,118 @@ class OutputRouter:
         """
         Starts the main loop to read and route output.
         """
-        loop = asyncio.get_running_loop()
-        self._shutdown_event = asyncio.Event()
-
-        # Monitor PTY for data (Standard Mode and Mirroring)
-        master_fd = self._orchestrator._master_fd
-        if master_fd is not None:
-            loop.add_reader(master_fd, self._on_pty_readable)
-
-        # Monitor local stdin for input
-        import sys
-        if self._mirror:
-            try:
-                stdin_fd = sys.stdin.fileno()
-                loop.add_reader(stdin_fd, self._on_stdin_readable)
-            except (Exception, io.UnsupportedOperation):
-                pass
+        self._setup_readers()
 
         try:
             if self._output_stream:
                 self._tailer = FileTailer(self._output_stream)
-                # FileTailer still uses a generator but it's isolated to output_stream mode
                 async for data in self._tailer.read_new(self._orchestrator):
                     await self._handle_new_data(data, telegram_only=True)
             else:
-                # In standard mode, we just wait for the process to exit
+                # In standard mode, the readers (callbacks) do the work.
+                # We just wait for the process to exit.
                 while self._orchestrator.is_alive():
                     await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             pass
         finally:
-            # Cleanup readers
-            if master_fd is not None:
-                loop.remove_reader(master_fd)
-            try:
-                loop.remove_reader(sys.stdin.fileno())
-            except Exception:
-                pass
-            
-            if self._tailer:
-                self._tailer.stop()
+            self._cleanup_readers()
+            await self._final_flush()
 
-            # Final flushes
-            if self._buffer:
-                await self._debouncer.push(self._buffer)
-                self._buffer = ""
-            if self._mirror_buffer:
-                self._flush_mirror()
-            await self._debouncer.flush()
+    def _setup_readers(self):
+        """Configures async loop readers for PTY and stdin."""
+        loop = asyncio.get_running_loop()
+        master_fd = self._orchestrator._master_fd
+        if master_fd is not None:
+            loop.add_reader(master_fd, self._on_pty_readable)
+
+        if self._mirror:
+            import sys
+            try:
+                stdin_fd = sys.stdin.fileno()
+                loop.add_reader(stdin_fd, self._on_stdin_readable)
+            except (Exception, io.UnsupportedOperation) as e:
+                logger.debug(f"Could not add reader for stdin: {e}")
+
+    def _cleanup_readers(self):
+        """Removes async loop readers."""
+        loop = asyncio.get_running_loop()
+        master_fd = self._orchestrator._master_fd
+        if master_fd is not None:
+            loop.remove_reader(master_fd)
+        
+        import sys
+        try:
+            loop.remove_reader(sys.stdin.fileno())
+        except Exception:
+            pass
+            
+        if self._tailer:
+            self._tailer.stop()
+
+    async def _final_flush(self):
+        """Performs final flushes of all buffers before shutdown."""
+        if self._buffer:
+            await self._debouncer.push(self._buffer)
+            self._buffer = ""
+        if self._mirror_buffer:
+            self._flush_mirror()
+        await self._debouncer.flush()
 
     def _on_pty_readable(self):
-        """Callback for loop.add_reader on the PTY master FD."""
+        """Callback for when the PTY master FD has data to read."""
         try:
-            # We use os.read directly since we know it's readable
             data = os.read(self._orchestrator._master_fd, 4096)
             if not data:
                 return
             
-            # Use create_task since handle_new_data is async
             # If output_stream is set, PTY data should be mirror-only
             asyncio.create_task(self._handle_new_data(data, mirror_only=bool(self._output_stream)))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Error reading from PTY: {e}")
 
     def _on_stdin_readable(self):
-        """Callback for loop.add_reader on local stdin."""
+        """Callback for when local stdin has data to read."""
         import sys
         try:
             data = os.read(sys.stdin.fileno(), 4096)
             if data:
                 asyncio.create_task(self._orchestrator.write(data))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Error reading from stdin: {e}")
 
     async def _handle_new_data(self, data: str | bytes, mirror_only: bool = False, telegram_only: bool = False):
         """
-        Handles incoming data by appending it to buffers and triggering
-        flushes for both mirror and Telegram.
+        Routes incoming data to the mirror and/or Telegram debouncer.
         """
-        # 1. Local Mirror (accumulate as bytes and debounce)
         if self._mirror and not telegram_only:
-            if isinstance(data, str):
-                self._mirror_buffer += data.encode('utf-8', errors='replace')
-            else:
-                self._mirror_buffer += data
-            self._schedule_mirror_flush()
+            self._route_to_mirror(data)
             
-        # 2. Telegram (safe chunks only)
         if not mirror_only:
-            if isinstance(data, bytes):
-                # Decode for Telegram processing
-                text = data.decode('utf-8', errors='replace')
-            else:
-                text = data
+            await self._route_to_telegram(data)
 
-            self._buffer += text
-            safe_chunk = self._extract_safe_chunk()
-            if safe_chunk:
-                await self._debouncer.push(safe_chunk)
+    def _route_to_mirror(self, data: str | bytes):
+        """Appends data to the mirror buffer and schedules a flush."""
+        if isinstance(data, str):
+            self._mirror_buffer += data.encode('utf-8', errors='replace')
+        else:
+            self._mirror_buffer += data
+        self._schedule_mirror_flush()
+
+    async def _route_to_telegram(self, data: str | bytes):
+        """Appends data to the telegram buffer and pushes safe chunks to the debouncer."""
+        if isinstance(data, bytes):
+            text = data.decode('utf-8', errors='replace')
+        else:
+            text = data
+
+        self._buffer += text
+        safe_chunk = self._extract_safe_chunk()
+        if safe_chunk:
+            await self._debouncer.push(safe_chunk)
 
     def _schedule_mirror_flush(self):
-        """
-        Schedules a flush to the local terminal.
-        """
+        """Schedules a flush to the local terminal with debouncing."""
         if self._mirror_timer:
             self._mirror_timer.cancel()
         
@@ -227,60 +268,81 @@ class OutputRouter:
             self._flush_mirror()
 
     def _flush_mirror(self):
-        """
-        Flushes the current mirror_buffer to local stdout. 
-        Uses a slightly longer debounce and direct writing to minimize flickering.
-        """
+        """Flushes the mirror_buffer directly to local stdout."""
         if not self._mirror_buffer:
             return
 
         import sys
-        # Use os.write for direct, non-buffered output
         try:
             os.write(sys.stdout.fileno(), self._mirror_buffer)
             self._mirror_buffer = b""
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to flush mirror buffer: {e}")
         finally:
             self._mirror_timer = None
 
     def _extract_safe_chunk(self) -> str:
         """
-        Extracts the part of self._buffer that is safe to send (no partial ANSI),
-        leaving the partial sequence in the buffer.
+        Extracts part of self._buffer that is safe to send (no partial ANSI),
+        leaving any partial sequence in the buffer.
         """
         if not self._buffer:
             return ""
 
-        # Look for partial ANSI escape sequences at the end of the buffer
-        # A sequence starts with ESC (\x1b)
+        # Find the last ESC character
         last_esc = self._buffer.rfind("\x1b")
         
         if last_esc != -1:
-            # We found an escape character. Check if the sequence is complete.
             potential_seq = self._buffer[last_esc:]
-            # If the sequence is incomplete, we split the buffer
-            if not ANSI_RE.fullmatch(potential_seq) and len(potential_seq) < 32:
-                # Extract everything up to the ESC, keep the rest for later
-                to_write = self._buffer[:last_esc]
-                self._buffer = self._buffer[last_esc:]
-                return to_write
+            # If the sequence at the end is incomplete AND it doesn't 
+            # already contain a complete sequence or extra text after a 
+            # possible sequence, we treat it as partial.
+            # A sequence is "truly partial" if it's just ESC or ESC+[...
+            # and doesn't have a terminator yet.
+            
+            # Use search to see if there's any COMPLETE sequence in the potential suffix
+            match = ANSI_RE.search(potential_seq)
+            
+            if match:
+                # There is a complete sequence. 
+                # Is there anything AFTER it?
+                end_pos = match.end()
+                if end_pos < len(potential_seq):
+                    # There is text after the complete sequence. 
+                    # Does THAT text contain another (partial) ESC?
+                    remaining = potential_seq[end_pos:]
+                    next_esc = remaining.rfind("\x1b")
+                    if next_esc != -1:
+                        # There's another ESC in the remainder
+                        split_point = last_esc + end_pos + next_esc
+                        to_write = self._buffer[:split_point]
+                        self._buffer = self._buffer[split_point:]
+                        return to_write
+                    else:
+                        # No more ESCs, it's all safe
+                        pass
+                else:
+                    # Sequence ends exactly at buffer end, all safe
+                    pass
+            else:
+                # No complete sequence found in the suffix starting with ESC.
+                # If it's short, it's likely a partial sequence.
+                if len(potential_seq) < 32:
+                    to_write = self._buffer[:last_esc]
+                    self._buffer = self._buffer[last_esc:]
+                    return to_write
         
-        # No partial sequence or complete sequence at the end
         to_write = self._buffer
         self._buffer = ""
         return to_write
 
     def prepare_terminal(self):
-        """
-        Clears the terminal and sets it to raw mode for local input.
-        """
+        """Clears terminal and sets local stdin to raw mode."""
         import sys
         import tty
         import termios
         import io
         
-        # Save original attributes for restoration
         try:
             fd = sys.stdin.fileno()
             self._old_settings = termios.tcgetattr(fd)
@@ -288,16 +350,13 @@ class OutputRouter:
         except (Exception, io.UnsupportedOperation):
             self._old_settings = None
 
-        # \x1b[2J: clear screen, \x1b[H: home cursor
         try:
-            os.write(sys.stdout.fileno(), b"\x1b[2J\x1b[H")
+            os.write(sys.stdout.fileno(), (CLEAR_SCREEN + HOME_CURSOR).encode("ascii"))
         except Exception:
             pass
 
     def restore_terminal(self):
-        """
-        Restores the terminal to its original state.
-        """
+        """Restores the terminal to its original state."""
         if not self._mirror or self._restored:
             return
 
@@ -306,7 +365,6 @@ class OutputRouter:
         import termios
         import io
         
-        # Restore raw mode first
         try:
             fd = sys.stdin.fileno()
             if self._old_settings:
@@ -317,108 +375,42 @@ class OutputRouter:
         except (Exception, io.UnsupportedOperation):
             pass
 
-        # Disable various mouse tracking modes
-        # ?1000l: VT200, ?1002l: Button event, ?1003l: Any event, ?1006l: SGR
-        # ?1049l: Exit alternate screen
-        # ?25h: Show cursor
-        # 2J: Clear screen, H: Home cursor
-        sequences = b"\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h\x1b[2J\x1b[H"
         try:
-            os.write(sys.stdout.fileno(), sequences)
+            os.write(sys.stdout.fileno(), RESTORE_TERMINAL_SEQ)
         except Exception:
             pass
         
-        # Give the terminal emulator a tiny bit of time to process the 
-        # sequences and stop sending events before we flush.
+        # Settle time and flush
         import time
         time.sleep(0.1)
 
-        # Flush stdin to get rid of any mouse movement/click sequences 
         try:
             termios.tcflush(fd, termios.TCIFLUSH)
         except Exception:
             pass
 
-        # Also try to run stty sane to be extra sure
         import subprocess
         try:
             subprocess.run(["stty", "sane"], check=False, capture_output=True)
         except Exception:
             pass
 
-    async def _drain_pty(self):
-        """
-        Drain PTY and mirror to local stdout if enabled.
-        Only runs if output_stream is active (as the main loop handles standard mode).
-        """
-        if not self._output_stream:
-            return
-
-        while self._orchestrator.is_alive():
-            try:
-                data = await self._orchestrator.read(1024)
-                if not data:
-                    if not self._orchestrator.is_alive():
-                        break
-                    await asyncio.sleep(0.05)
-                    continue
-                
-                # Drain PTY is for local mirroring only when tailing a file
-                await self._handle_new_data(data, mirror_only=True)
-            except (asyncio.CancelledError, OSError, EOFError):
-                break
-            except Exception:
-                break
-
-    async def _handle_local_input(self):
-        """
-        Reads from local stdin and writes to the orchestrator.
-        """
-        import sys
-        import select
-        loop = asyncio.get_running_loop()
-        fd = sys.stdin.fileno()
-        
-        while self._orchestrator.is_alive():
-            try:
-                # Use select to wait for input with a timeout
-                # This makes the loop responsive to process death and cancellation
-                r, _, _ = await loop.run_in_executor(None, select.select, [fd], [], [], 0.5)
-                if not r:
-                    continue
-                
-                # Read as much as available to handle escape sequences and fast typing
-                data = os.read(fd, 4096)
-                if not data:
-                    break
-                await self._orchestrator.write(data)
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                break
-
     async def _flush_buffer(self, items: list[str]):
+        """Processes collected chunks, strips ANSI, and sends to Telegram."""
         if not items:
             return
 
         full_text = "".join(items)
-        
-        # Strip ANSI escape sequences for Telegram output
         full_text = ANSI_RE.sub('', full_text)
 
-        # Split into lines and filter empty ones
         lines = [line.strip() for line in full_text.split("\n") if line.strip()]
-        
         if not lines:
             return
             
         full_message = "\n".join(lines)
 
-        # Telegram message limit is 4096 characters
         MAX_TELEGRAM_MSG = 4096
         if len(full_message) > MAX_TELEGRAM_MSG:
-            # Trim the message if it's too long
-            # Keep the beginning and the end, with a warning in the middle
             half_limit = (MAX_TELEGRAM_MSG // 2) - 100
             full_message = (
                 full_message[:half_limit]
@@ -426,4 +418,7 @@ class OutputRouter:
                 + full_message[-half_limit:]
             )
 
-        await self._sender(full_message)
+        try:
+            await self._sender(full_message)
+        except Exception as e:
+            logger.error(f"Failed to send Telegram message: {e}")

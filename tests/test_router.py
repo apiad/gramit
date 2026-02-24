@@ -115,3 +115,51 @@ async def test_terminal_cleanup_once():
         router.restore_terminal()
         # Should NOT have increased
         assert mock_write.call_count == first_call_count
+
+def test_extract_safe_chunk_with_partial_ansi():
+    """
+    Tests that partial ANSI sequences are kept in the buffer.
+    """
+    router = OutputRouter(MagicMock(), MagicMock())
+    
+    # Complete sequence
+    router._buffer = "hello\x1b[31mworld"
+    chunk = router._extract_safe_chunk()
+    assert chunk == "hello\x1b[31mworld"
+    assert router._buffer == ""
+    
+    # Partial sequence at end
+    router._buffer = "hello\x1b["
+    chunk = router._extract_safe_chunk()
+    assert chunk == "hello"
+    assert router._buffer == "\x1b["
+    
+    # Append more to complete it
+    router._buffer += "31m"
+    chunk = router._extract_safe_chunk()
+    assert chunk == "\x1b[31m"
+    assert router._buffer == ""
+
+def test_extract_safe_chunk_with_esc_at_end():
+    """
+    Tests that an ESC character at the very end of the buffer is treated as partial.
+    """
+    router = OutputRouter(MagicMock(), MagicMock())
+    router._buffer = "data\x1b"
+    chunk = router._extract_safe_chunk()
+    assert chunk == "data"
+    assert router._buffer == "\x1b"
+
+def test_extract_safe_chunk_long_partial_sequence():
+    """
+    Tests that very long (possibly invalid) sequences are eventually flushed
+    to avoid infinite buffering.
+    """
+    router = OutputRouter(MagicMock(), MagicMock())
+    # > 32 characters starting with \x1b
+    long_garbage = "\x1b" + "a" * 40
+    router._buffer = long_garbage
+    chunk = router._extract_safe_chunk()
+    # Heuristic in code is 32 chars
+    assert chunk == long_garbage
+    assert router._buffer == ""

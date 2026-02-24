@@ -1,7 +1,10 @@
 import os
 import pty
 import asyncio
+import shutil
 from typing import List
+
+from .utils import get_terminal_size, set_terminal_size, logger
 
 
 class Orchestrator:
@@ -54,6 +57,30 @@ class Orchestrator:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, os.write, self._master_fd, encoded_data)
 
+    def _prepare_child_process(self):
+        """
+        Configures the environment and executes the command in the child process.
+        This method is called after pty.fork().
+        """
+        try:
+            cmd = self._command[0]
+            # If the command is not an absolute path and not in PATH,
+            # but exists in the current directory, prepend ./
+            if not os.path.isabs(cmd) and os.path.sep not in cmd:
+                if not shutil.which(cmd) and os.path.exists(cmd):
+                    self._command[0] = os.path.join(os.curdir, cmd)
+            
+            # Security: Scrub sensitive environment variables before execvp
+            env = os.environ.copy()
+            env.pop("GRAMIT_TELEGRAM_TOKEN", None)
+            env.pop("GRAMIT_CHAT_ID", None)
+            
+            os.execvpe(self._command[0], self._command, env)
+        except OSError as e:
+            # If execvp fails, we need to exit the child process
+            logger.error(f"FATAL: execvp failed: {e}")
+            os._exit(1)
+
     async def start(self) -> int:
         """
         Spawns the child process in a new PTY, inheriting the current terminal size.
@@ -61,51 +88,19 @@ class Orchestrator:
         Returns:
             The PID of the spawned process.
         """
-        # Get current terminal size
-        import shutil
-        import struct
-        import fcntl
-        import termios
-        
-        # Try to get size from stdout/stdin
-        try:
-            cols, rows = shutil.get_terminal_size()
-        except Exception:
-            cols, rows = 80, 24
+        cols, rows = get_terminal_size()
 
         pid, master_fd = pty.fork()
 
         if pid == pty.CHILD:
-            # In the child process, execute the command
-            try:
-                cmd = self._command[0]
-                # If the command is not an absolute path and not in PATH,
-                # but exists in the current directory, prepend ./
-                if not os.path.isabs(cmd) and os.path.sep not in cmd:
-                    if not shutil.which(cmd) and os.path.exists(cmd):
-                        self._command[0] = os.path.join(os.curdir, cmd)
-                
-                # Security: Scrub sensitive environment variables before execvp
-                env = os.environ.copy()
-                env.pop("GRAMIT_TELEGRAM_TOKEN", None)
-                env.pop("GRAMIT_CHAT_ID", None)
-                
-                os.execvpe(self._command[0], self._command, env)
-            except OSError as e:
-                # If execvp fails, we need to exit the child process
-                print(f"FATAL: execvp failed: {e}")
-                os._exit(1)
+            self._prepare_child_process()
         else:
             # In the parent process
             self._pid = pid
             self._master_fd = master_fd
             
             # Set initial size explicitly on the master FD
-            try:
-                winsize = struct.pack("HHHH", rows, cols, 0, 0)
-                fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
-            except Exception:
-                pass # Best effort
+            set_terminal_size(self._master_fd, cols, rows)
 
             return pid
 
@@ -116,18 +111,8 @@ class Orchestrator:
         if self._master_fd is None:
             return
 
-        import shutil
-        import struct
-        import fcntl
-        import termios
-
-        try:
-            # Use sys.stdout for size as it's most likely the TTY
-            cols, rows = shutil.get_terminal_size()
-            winsize = struct.pack("HHHH", rows, cols, 0, 0)
-            fcntl.ioctl(self._master_fd, termios.TIOCSWINSZ, winsize)
-        except Exception:
-            pass # Best effort
+        cols, rows = get_terminal_size()
+        set_terminal_size(self._master_fd, cols, rows)
 
     def is_alive(self) -> bool:
         """Checks if the child process is currently running."""
@@ -154,7 +139,10 @@ class Orchestrator:
                 pass
 
         if self._master_fd:
-            os.close(self._master_fd)
+            try:
+                os.close(self._master_fd)
+            except OSError:
+                pass
 
         self._pid = None
         self._master_fd = None

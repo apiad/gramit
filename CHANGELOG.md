@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Configured `AfterAgent` hooks to run sequentially using `sequential: true` in `.gemini/settings.json`, ensuring validation occurs before record-keeping.
 - **Custom Workflow Commands:**
     - Added the `/commit` command to `GEMINI.md`, enabling Gemini CLI to autonomously analyze, group, and commit changes using Conventional Commits best practices (`feat`, `fix`, `docs`, etc.).
+    - Added the `/maintainance` custom Gemini CLI command (`.gemini/commands/maintainance.toml`) to perform deep codebase analysis and propose/implement step-by-step refactoring for readability and maintainability.
 - **Automated Record Keeping:**
     - Enabled the `AfterAgent` hook in `.gemini/settings.json` to automatically prompt the agent to update `CHANGELOG.md` and `journal/` after successful code modifications.
     - Implemented and refined `gemini_logger.py` hook logic to detect significant repository changes using `git status` while avoiding infinite loops.

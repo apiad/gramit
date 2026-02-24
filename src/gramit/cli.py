@@ -33,10 +33,14 @@ async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# Global reference for the output router to allow cleanup in case of KeyboardInterrupt
+_current_output_router = None
+
 async def main():
     """
     Main entrypoint for the gramit application.
     """
+    global _current_output_router
     load_dotenv()
 
     parser = argparse.ArgumentParser(
@@ -130,6 +134,7 @@ async def main():
         output_stream=args.output_stream,
         mirror=args.mirror,
     )
+    _current_output_router = output_router
 
     # --- Application Setup ---
     application = Application.builder().token(token).build()
@@ -164,37 +169,70 @@ async def main():
 
             await orchestrator.start()
             
-            # Handle window resize signals
+            # Handle window resize and shutdown signals
             import signal
             loop = asyncio.get_running_loop()
+            
+            def handle_shutdown():
+                shutdown_event.set()
+                
             try:
                 loop.add_signal_handler(signal.SIGWINCH, orchestrator.resize)
+                # Register SIGINT and SIGTERM to set the shutdown_event
+                # This ensures we enter our cleanup logic gracefully
+                loop.add_signal_handler(signal.SIGINT, handle_shutdown)
+                loop.add_signal_handler(signal.SIGTERM, handle_shutdown)
             except (NotImplementedError, AttributeError):
-                # signal.SIGWINCH might not be available on all platforms
                 pass
 
-            output_task = asyncio.create_task(output_router.start())
-
             try:
-                await asyncio.gather(output_task, shutdown_event.wait())
-            except asyncio.CancelledError:
-                # Ensure orchestrator and output_task are shut down
+                # Prepare terminal for mirroring BEFORE starting the task
+                output_router.prepare_terminal()
+
+                # Start the output router task
+                output_task = asyncio.create_task(output_router.start())
+
+                # Wait for either the output task to finish or the shutdown event
+                done, pending = await asyncio.wait(
+                    [output_task, asyncio.create_task(shutdown_event.wait())],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+            finally:
+                # Security: Remove signal handlers once we start shutting down
+                try:
+                    loop.remove_signal_handler(signal.SIGINT)
+                    loop.remove_signal_handler(signal.SIGTERM)
+                except Exception:
+                    pass
+
+                # Ensure terminal is restored regardless of how we exited
+                output_router.restore_terminal()
+
+                # Ensure orchestrator and output_task are shut down gracefully
                 if orchestrator.is_alive():
                     await orchestrator.shutdown()
+                
                 if output_task and not output_task.done():
                     output_task.cancel()
                     try:
                         await output_task
-                    except asyncio.CancelledError:
+                    except (asyncio.CancelledError, Exception):
                         pass
-                # The async with application block's __aexit__ will handle Telegram app shutdown.
-                await sender("Gramit application was interrupted. Goodbye!")
-                raise  # Re-raise to allow async with to handle it
+                
+                # Check if we should send a goodbye message
+                if shutdown_event.is_set():
+                    await sender("Gramit application was interrupted. Goodbye!")
+                else:
+                    await sender("Orchestrated process has terminated. Goodbye!")
 
-            await sender("Orchestrated process has terminated. Goodbye!")
-
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        # Handle cases where asyncio.run might cancel the main task
+        pass
     except Exception as e:  # Catch any other exceptions
-        await sender(f"Gramit encountered an error: `{e}`. Shutting down.")
+        try:
+            await sender(f"Gramit encountered an error: `{e}`. Shutting down.")
+        except Exception:
+            print(f"Gramit encountered a fatal error: {e}")
     finally:
         pass
         # The async with application's __aexit__ handles Telegram app shutdown.
@@ -203,11 +241,26 @@ async def main():
 
 def run():
     """Sync entrypoint for the console script."""
+    import signal
+    import sys
+
+    def signal_handler(sig, frame):
+        # Immediate terminal restoration on signal
+        if _current_output_router:
+            _current_output_router.restore_terminal()
+        # After restoration, perform default behavior or exit
+        sys.exit(1)
+
+    # Register basic signal handlers for sync cleanup
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, ValueError) as e:
-        print(f"Error: {e}")
-
-
-if __name__ == "__main__":
-    run()
+        if isinstance(e, ValueError):
+            print(f"Error: {e}")
+    finally:
+        # Final safety net for terminal restoration
+        if _current_output_router:
+            _current_output_router.restore_terminal()

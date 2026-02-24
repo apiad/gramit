@@ -104,76 +104,84 @@ class OutputRouter:
         self._old_settings = None
         self._mirror_timer: Optional[asyncio.TimerHandle] = None
         self._mirror_debounce_interval = 0.04 # 40ms for better TUI quiescence (approx 25fps)
+        self._restored = False
 
     async def start(self):
         """
         Starts the main loop to read and route output.
         """
-        # Prepare terminal for mirroring
-        if self._mirror:
-            self._prepare_terminal()
+        loop = asyncio.get_running_loop()
+        self._shutdown_event = asyncio.Event()
 
-        # Always drain the PTY to mirror to local terminal (if enabled) and prevent blocking.
-        pty_drainer = asyncio.create_task(self._drain_pty())
-        
-        # Local input handler
-        local_input_handler = None
+        # Monitor PTY for data (Standard Mode and Mirroring)
+        master_fd = self._orchestrator._master_fd
+        if master_fd is not None:
+            loop.add_reader(master_fd, self._on_pty_readable)
+
+        # Monitor local stdin for input
+        import sys
         if self._mirror:
-            local_input_handler = asyncio.create_task(self._handle_local_input())
+            try:
+                stdin_fd = sys.stdin.fileno()
+                loop.add_reader(stdin_fd, self._on_stdin_readable)
+            except (Exception, io.UnsupportedOperation):
+                pass
 
         try:
             if self._output_stream:
                 self._tailer = FileTailer(self._output_stream)
-                try:
-                    # FileTailer.read_new yields chunks of text
-                    async for data in self._tailer.read_new(self._orchestrator):
-                        # File stream goes to Telegram only (don't mirror to avoid cluttering TUI)
-                        await self._handle_new_data(data, telegram_only=True)
-                except asyncio.CancelledError:
-                    pass
-                finally:
-                    if self._tailer:
-                        self._tailer.stop()
+                # FileTailer still uses a generator but it's isolated to output_stream mode
+                async for data in self._tailer.read_new(self._orchestrator):
+                    await self._handle_new_data(data, telegram_only=True)
             else:
-                # Standard PTY -> Telegram mode
+                # In standard mode, we just wait for the process to exit
                 while self._orchestrator.is_alive():
-                    try:
-                        # Non-blocking read attempt
-                        data = await self._orchestrator.read(4096)
-                        if not data:
-                            # Might be EOF or just temporary no-data
-                            if not self._orchestrator.is_alive():
-                                break
-                            await asyncio.sleep(0.01)
-                            continue
-                        
-                        # In standard mode, we both mirror and send to Telegram
-                        await self._handle_new_data(data)
-
-                    except asyncio.CancelledError:
-                        break
-                    except Exception:
-                        break
+                    await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            pass
         finally:
-            # Cleanup tasks
-            for task in [pty_drainer, local_input_handler]:
-                if task and not task.done():
-                    task.cancel()
+            # Cleanup readers
+            if master_fd is not None:
+                loop.remove_reader(master_fd)
+            try:
+                loop.remove_reader(sys.stdin.fileno())
+            except Exception:
+                pass
             
-            # Final flushes for any remaining data
+            if self._tailer:
+                self._tailer.stop()
+
+            # Final flushes
             if self._buffer:
                 await self._debouncer.push(self._buffer)
                 self._buffer = ""
-            
-            # For mirror, we flush one last time immediately
             if self._mirror_buffer:
                 self._flush_mirror()
-                
             await self._debouncer.flush()
+
+    def _on_pty_readable(self):
+        """Callback for loop.add_reader on the PTY master FD."""
+        try:
+            # We use os.read directly since we know it's readable
+            data = os.read(self._orchestrator._master_fd, 4096)
+            if not data:
+                return
             
-            # Restore terminal state in case it was a TUI
-            if self._mirror:
-                self._restore_terminal()
+            # Use create_task since handle_new_data is async
+            # If output_stream is set, PTY data should be mirror-only
+            asyncio.create_task(self._handle_new_data(data, mirror_only=bool(self._output_stream)))
+        except Exception:
+            pass
+
+    def _on_stdin_readable(self):
+        """Callback for loop.add_reader on local stdin."""
+        import sys
+        try:
+            data = os.read(sys.stdin.fileno(), 4096)
+            if data:
+                asyncio.create_task(self._orchestrator.write(data))
+        except Exception:
+            pass
 
     async def _handle_new_data(self, data: str | bytes, mirror_only: bool = False, telegram_only: bool = False):
         """
@@ -262,7 +270,7 @@ class OutputRouter:
         self._buffer = ""
         return to_write
 
-    def _prepare_terminal(self):
+    def prepare_terminal(self):
         """
         Clears the terminal and sets it to raw mode for local input.
         """
@@ -285,10 +293,14 @@ class OutputRouter:
         except Exception:
             pass
 
-    def _restore_terminal(self):
+    def restore_terminal(self):
         """
         Restores the terminal to its original state.
         """
+        if not self._mirror or self._restored:
+            return
+
+        self._restored = True
         import sys
         import termios
         import io

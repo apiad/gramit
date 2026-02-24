@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Carriage Return Injection Control:**
+    - Added `-e` / `--e` / `--enter` CLI flag to inject an `/enter` (`\r`) after each Telegram message (enabled by default).
+    - Added `--no-enter` CLI flag to disable automatic carriage return injection.
 - **Validation Hook:**
     - Added a new `AfterAgent` hook `run-make-validation` that automatically runs `make` (linting and tests) after every agent turn.
     - Configured `AfterAgent` hooks to run sequentially using `sequential: true` in `.gemini/settings.json`, ensuring validation occurs before record-keeping.

@@ -16,10 +16,12 @@ class InputRouter:
         orchestrator: Orchestrator,
         authorized_chat_ids: List[int],
         shutdown_event: asyncio.Event,
+        inject_enter: bool = True,
     ):
         self._orchestrator = orchestrator
         self._authorized_chat_ids = authorized_chat_ids
         self._shutdown_event = shutdown_event
+        self._inject_enter = inject_enter
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -43,7 +45,11 @@ class InputRouter:
             return
 
         # Many TUIs and interactive shells expect \r for Enter
-        await self._orchestrator.write(sanitized_text + "\r")
+        to_send = sanitized_text
+        if self._inject_enter:
+            to_send += "\r"
+            
+        await self._orchestrator.write(to_send)
 
     async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """

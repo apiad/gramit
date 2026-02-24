@@ -70,6 +70,20 @@ async def main():
     )
     parser.set_defaults(mirror=True)
     parser.add_argument(
+        "-e",
+        "--enter",
+        dest="enter",
+        action="store_true",
+        help="Inject an /enter (\\r) after each Telegram message. Enabled by default.",
+    )
+    parser.add_argument(
+        "--no-enter",
+        action="store_false",
+        dest="enter",
+        help="Disable injecting an /enter after each Telegram message.",
+    )
+    parser.set_defaults(enter=True)
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="The command to execute.",
@@ -126,6 +140,7 @@ async def main():
         orchestrator=orchestrator,
         authorized_chat_ids=[int(args.chat_id)],
         shutdown_event=shutdown_event,
+        inject_enter=args.enter,
     )
     output_router = OutputRouter(
         orchestrator=orchestrator,

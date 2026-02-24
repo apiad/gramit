@@ -33,8 +33,9 @@ async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# Global reference for the output router to allow cleanup in case of KeyboardInterrupt
+# Global references for cleanup in case of KeyboardInterrupt or signals
 _current_output_router = None
+_current_orchestrator = None
 
 def get_parser():
     """
@@ -95,7 +96,7 @@ async def main():
     """
     Main entrypoint for the gramit application.
     """
-    global _current_output_router
+    global _current_output_router, _current_orchestrator
     load_dotenv()
 
     parser = get_parser()
@@ -138,6 +139,7 @@ async def main():
 
     # --- Component Setup ---
     orchestrator = Orchestrator(args.command)
+    _current_orchestrator = orchestrator
 
     bot = Bot(token)
 
@@ -228,13 +230,15 @@ async def main():
                 except Exception:
                     pass
 
-                # Ensure terminal is restored regardless of how we exited
-                output_router.restore_terminal()
-
-                # Ensure orchestrator and output_task are shut down gracefully
+                # 1. Ensure orchestrator is shut down BEFORE terminal is restored.
+                # This prevents dying processes from writing to the raw terminal.
                 if orchestrator.is_alive():
                     await orchestrator.shutdown()
 
+                # 2. Ensure terminal is restored regardless of how we exited
+                output_router.restore_terminal()
+
+                # 3. Cleanup the output task
                 if output_task and not output_task.done():
                     output_task.cancel()
                     try:
@@ -265,12 +269,20 @@ async def main():
 def run():
     import signal
     import sys
+    import os
 
     def signal_handler(sig, frame):
-        # Immediate terminal restoration on signal
+        # 1. Kill orchestrated process first to stop output
+        if _current_orchestrator and _current_orchestrator.is_alive():
+            try:
+                if _current_orchestrator._pid:
+                    os.kill(_current_orchestrator._pid, 9) # SIGKILL for immediate stop
+            except Exception:
+                pass
+
+        # 2. Then restore terminal
         if _current_output_router:
             _current_output_router.restore_terminal()
-        # After restoration, perform default behavior or exit
         sys.exit(1)
 
     # Register basic signal handlers for sync cleanup
@@ -284,5 +296,6 @@ def run():
             print(f"Error: {e}")
     finally:
         # Final safety net for terminal restoration
+        # Note: main() already handles graceful shutdown of orchestrator
         if _current_output_router:
             _current_output_router.restore_terminal()

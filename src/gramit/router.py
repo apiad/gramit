@@ -321,7 +321,8 @@ class OutputRouter:
         # ?1000l: VT200, ?1002l: Button event, ?1003l: Any event, ?1006l: SGR
         # ?1049l: Exit alternate screen
         # ?25h: Show cursor
-        sequences = b"\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h"
+        # 2J: Clear screen, H: Home cursor
+        sequences = b"\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h\x1b[2J\x1b[H"
         try:
             os.write(sys.stdout.fileno(), sequences)
         except Exception:

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Telegram Output Formatting:**
+    - Removed automatic code block wrapping (triple backticks) from Telegram messages to support standard Markdown rendering.
+    - Enabled `parse_mode="Markdown"` for all outgoing Telegram messages.
+    - Refactored `/help`, `/quit`, and startup messages to use Markdown formatting (italics and inline code) instead of plain text or forced code blocks.
+    - Removed the logic that escaped triple backticks in output messages.
+
+### Fixed
+- **Gemini Logger Hook:**
+    - Fixed a bug where `transcript_data` was being treated as a `list` when it is now provided as a `dict` by the CLI, causing the hook to return early.
+    - Implemented robust data extraction to locate conversation messages within the `messages`, `transcript`, or `history` keys of the transcript dictionary.
+    - Added comprehensive internal debug logging to `gemini.log` to trace hook execution, event triggers, and data structure mismatches.
+
 ## [v0.4.6] - 2026-02-23
 
 ### Fixed
@@ -20,8 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.4.3] - 2026-02-23
 
-## [v0.4.2]
- - 2026-02-23
+## [v0.4.2] - 2026-02-23
 
 ### Fixed
 - **ANSI Splitting:** Implemented `_extract_safe_chunk` to ensure partial ANSI escape sequences are not split between messages, preventing "glitchy" characters in Telegram and the local mirror.

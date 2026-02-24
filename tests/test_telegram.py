@@ -67,7 +67,9 @@ async def test_input_router_quit_command():
     await router.handle_command(update, mock_context)
     mock_orchestrator.shutdown.assert_awaited()
     mock_context.bot.send_message.assert_awaited_with(
-        chat_id=12345, text="Shutting down the orchestrated process."
+        chat_id=12345,
+        text="Shutting down the orchestrated process.",
+        parse_mode="Markdown",
     )
     mock_shutdown_event.set.assert_called_once()
     

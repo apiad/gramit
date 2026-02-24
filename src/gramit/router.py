@@ -405,7 +405,7 @@ class OutputRouter:
         if len(full_message) > MAX_TELEGRAM_MSG:
             # Trim the message if it's too long
             # Keep the beginning and the end, with a warning in the middle
-            half_limit = (MAX_TELEGRAM_MSG // 2) - 50
+            half_limit = (MAX_TELEGRAM_MSG // 2) - 100
             full_message = (
                 full_message[:half_limit]
                 + "\n\n... [Output trimmed due to size] ...\n\n"

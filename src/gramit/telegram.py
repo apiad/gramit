@@ -53,7 +53,9 @@ class InputRouter:
         # 1. Check for standard /quit command
         if command_text == "/quit":
             await context.bot.send_message(
-                chat_id=chat_id, text="Shutting down the orchestrated process."
+                chat_id=chat_id,
+                text="Shutting down the orchestrated process.",
+                parse_mode="Markdown",
             )
             await self._orchestrator.shutdown()
             self._shutdown_event.set()
@@ -62,16 +64,16 @@ class InputRouter:
         # 2. Check for /help command
         if command_text == "/help":
             help_text = (
-                "**Gramit Help**\n\n"
-                "**Control Commands:**\n"
+                "*Gramit Help*\n\n"
+                "*Control Commands:*\n"
                 "/quit - Terminate the process\n"
                 "/help - Show this help message\n\n"
-                "**Key Shortcuts:**\n"
+                "*Key Shortcuts:*\n"
                 "/enter, /esc, /t (Tab), /b (Backspace), /d (Delete)\n"
                 "/up, /down, /left, /right\n"
                 "/home, /end, /paup (PageUp), /padn (PageDown), /ins (Insert)\n"
                 "/f1 to /f12\n\n"
-                "**Modifiers:**\n"
+                "*Modifiers:*\n"
                 "Combine modifiers with base keys or characters:\n"
                 "`/c a` (Ctrl+A), `/a /up` (Alt+Up), `/c /s z` (Ctrl+Shift+Z)\n"
                 "Multiple modifiers: `/c /a x` (Ctrl+Alt+X)\n"

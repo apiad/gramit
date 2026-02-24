@@ -28,7 +28,9 @@ async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     chat_id = update.message.chat.id
-    await update.message.reply_text(f"Your Chat ID is: {chat_id}")
+    await update.message.reply_text(
+        f"Your Chat ID is: `{chat_id}`", parse_mode="Markdown"
+    )
 
 
 async def main():
@@ -113,8 +115,8 @@ async def main():
 
     bot = Bot(token)
 
-    def sender(msg):
-        return bot.send_message(chat_id=args.chat_id, text=msg)
+    async def sender(msg):
+        return await bot.send_message(chat_id=args.chat_id, text=msg, parse_mode="Markdown")
 
     input_router = InputRouter(
         orchestrator=orchestrator,
@@ -148,14 +150,14 @@ async def main():
                 await application.updater.start_polling()
             except Exception as e:
                 await sender(
-                    f"Error starting Telegram bot: {e}. Please check your token."
+                    f"Error starting Telegram bot: `{e}`. Please check your token."
                 )
                 return
 
             # Send initial message
             initial_message = (
-                f"Gramit started for command: `{' '.join(args.command)}`\n"
-                f"Broadcasting to chat ID: `{args.chat_id}`\n"
+                f"*Gramit started for command:* `{' '.join(args.command)}`\n"
+                f"*Broadcasting to chat ID:* `{args.chat_id}`\n\n"
                 "Send `/help` for key shortcuts or `/quit` to terminate."
             )
             await sender(initial_message)
@@ -192,7 +194,7 @@ async def main():
             await sender("Orchestrated process has terminated. Goodbye!")
 
     except Exception as e:  # Catch any other exceptions
-        await sender(f"Gramit encountered an error: {e}. Shutting down.")
+        await sender(f"Gramit encountered an error: `{e}`. Shutting down.")
     finally:
         pass
         # The async with application's __aexit__ handles Telegram app shutdown.

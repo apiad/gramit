@@ -35,8 +35,18 @@ def update_journal_and_changelog(data):
         with open(transcript_path, "r", encoding="utf-8") as f:
             transcript_data = json.load(f)
 
-        if not transcript_data or not isinstance(transcript_data, list):
+        if not transcript_data:
             return
+
+        # Handle transcript provided as a dictionary (standard CLI behavior)
+        if isinstance(transcript_data, dict):
+            for key in ["messages", "transcript", "history"]:
+                if key in transcript_data and isinstance(transcript_data[key], list):
+                    transcript_data = transcript_data[key]
+                    break
+            else:
+                if not isinstance(transcript_data, list):
+                    return
 
         # Check for tool calls in the last 15 messages (be generous)
         last_few = transcript_data[-15:]
@@ -121,10 +131,6 @@ def main():
                                 f.write(part["text"])
                         if finish_reason:
                             f.write("\n\n")
-
-                            # TRICK: Use finish_reason as a trigger for "end of model response"
-                            # which often means the turn is ending or tool calls are ready in transcript
-                            update_journal_and_changelog(data)
 
         elif event == "AfterAgent":
             update_journal_and_changelog(data)

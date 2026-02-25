@@ -10,15 +10,15 @@ preview:
 
 .PHONY: format
 format:
-	ruff format && git commit -am "Apply code formatting"
+	uv run ruff format && git commit -am "Apply code formatting"
 
 .PHONY: check
 check:
-	ruff check
+	uv run ruff check
 
 .PHONY: test-unit
 test-unit: check
-	pytest --cov=gramit
+	uv run pytest --cov=gramit
 
 .PHONY: clean
 clean:

@@ -16,6 +16,11 @@
             "name": "reset-log-on-startup",
             "type": "command",
             "command": "python3 .gemini/hooks/gemini_logger.py"
+          },
+          {
+            "name": "welcome-message",
+            "type": "command",
+            "command": "python3 .gemini/hooks/welcome.py"
           }
         ]
       },
@@ -26,6 +31,11 @@
             "name": "reset-log-on-resume",
             "type": "command",
             "command": "python3 .gemini/hooks/gemini_logger.py"
+          },
+          {
+            "name": "welcome-message",
+            "type": "command",
+            "command": "python3 .gemini/hooks/welcome.py"
           }
         ]
       },
@@ -36,6 +46,11 @@
             "name": "reset-log-on-clear",
             "type": "command",
             "command": "python3 .gemini/hooks/gemini_logger.py"
+          },
+          {
+            "name": "welcome-message",
+            "type": "command",
+            "command": "python3 .gemini/hooks/welcome.py"
           }
         ]
       }

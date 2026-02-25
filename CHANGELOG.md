@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Welcome Session Hook:**
+    - Created a new `SessionStart` hook (`.gemini/hooks/welcome.py`) that displays a personalized welcome message upon starting, resuming, or clearing a session.
+    - The message includes the project name and description (extracted from `pyproject.toml`), a real-time `git status` summary, and a list of available custom commands (`/commit`, `/maintainance`).
+    - Integrated the hook into `.gemini/settings.json` for all session lifecycle events.
 - **Carriage Return Injection Control:**
     - Added `-e` / `--e` / `--enter` CLI flag to inject an `/enter` (`\r`) after each Telegram message (enabled by default).
     - Fixed `-e` / `--enter` behavior to send the message text and the carriage return as separate PTY inputs for better compatibility with certain TUIs and shells.

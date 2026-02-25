@@ -2,6 +2,10 @@ import os
 import asyncio
 import argparse
 import logging
+import signal
+import sys
+from typing import Optional
+
 from dotenv import load_dotenv
 from telegram import Update, Bot
 from telegram.ext import (
@@ -14,312 +18,319 @@ from telegram.ext import (
 from .orchestrator import Orchestrator
 from .router import OutputRouter
 from .telegram import InputRouter
-from .utils import RESTORE_TERMINAL_SEQ, logger
+from .terminal import RESTORE_TERMINAL_SEQ
+from .utils import logger
 
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log the error and send a telegram message to notify the developer."""
-    logger.error(f"Telegram error: {context.error}")
-    if update:
-        logger.debug(f"Update that caused the error: {update}")
-
-
-async def _register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """A simple handler that prints information about any message it receives."""
-    if not update.message:
-        return
-
-    chat_id = update.message.chat.id
-    await update.message.reply_text(
-        f"Your Chat ID is: `{chat_id}`", parse_mode="Markdown"
-    )
-
-
-# Global references for cleanup in case of KeyboardInterrupt or signals
-_current_output_router = None
-_current_orchestrator = None
-
-def get_parser():
+class GramitCLI:
     """
-    Returns the argument parser for gramit.
+    Manages the Gramit Command Line Interface and application lifecycle.
     """
-    parser = argparse.ArgumentParser(
-        description="Gramit: Bridge a local CLI application with a remote Telegram interface."
-    )
-    parser.add_argument(
-        "--chat-id",
-        type=int,
-        default=os.getenv("GRAMIT_CHAT_ID"),
-        help="The authorized Telegram chat ID. Can also be set via GRAMIT_CHAT_ID env var.",
-    )
-    parser.add_argument(
-        "--register",
-        action="store_true",
-        help="Run in registration mode to find a chat ID.",
-    )
-    parser.add_argument(
-        "-o",
-        "--output-stream",
-        help="Path to a file to tail for output instead of PTY stdout.",
-    )
-    parser.add_argument(
-        "--no-mirror",
-        action="store_false",
-        dest="mirror",
-        help="Disable mirroring the orchestrated process output to the local terminal.",
-    )
-    parser.set_defaults(mirror=True)
-    parser.add_argument(
-        "-e",
-        "--e",
-        "--enter",
-        dest="enter",
-        action="store_true",
-        help="Inject an /enter (\\r) after each Telegram message with a minimum delay (200ms). Disabled by default. Useful for complex TUIs that require an explicit Enter key press to trigger actions.",
-    )
-    parser.add_argument(
-        "--no-enter",
-        action="store_false",
-        dest="enter",
-        help="Disable injecting an /enter after each Telegram message.",
-    )
-    parser.set_defaults(enter=False)
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging.",
-    )
-    parser.add_argument(
-        "--log-file",
-        default="gramit.log",
-        help="Path to the log file. Defaults to 'gramit.log'.",
-    )
-    parser.add_argument(
-        "command",
-        nargs=argparse.REMAINDER,
-        help="The command to execute.",
-    )
-    # --line-mode will be used in a future phase
-    parser.add_argument("--line-mode", action="store_true", help="Enable line mode.")
-    return parser
 
+    def __init__(self):
+        self.args: Optional[argparse.Namespace] = None
+        self.orchestrator: Optional[Orchestrator] = None
+        self.output_router: Optional[OutputRouter] = None
+        self.shutdown_event = asyncio.Event()
+        self.application: Optional[Application] = None
+        self.token: Optional[str] = None
 
-async def main():
-    """
-    Main entrypoint for the gramit application.
-    """
-    global _current_output_router, _current_orchestrator
-    load_dotenv()
+    def get_parser(self) -> argparse.ArgumentParser:
+        """
+        Returns the argument parser for gramit.
+        """
+        parser = argparse.ArgumentParser(
+            description="Gramit: Bridge a local CLI application with a remote Telegram interface."
+        )
+        parser.add_argument(
+            "--chat-id",
+            type=int,
+            default=os.getenv("GRAMIT_CHAT_ID"),
+            help="The authorized Telegram chat ID. Can also be set via GRAMIT_CHAT_ID env var.",
+        )
+        parser.add_argument(
+            "--register",
+            action="store_true",
+            help="Run in registration mode to find a chat ID.",
+        )
+        parser.add_argument(
+            "-o",
+            "--output-stream",
+            help="Path to a file to tail for output instead of PTY stdout.",
+        )
+        parser.add_argument(
+            "--no-mirror",
+            action="store_false",
+            dest="mirror",
+            help="Disable mirroring the orchestrated process output to the local terminal.",
+        )
+        parser.set_defaults(mirror=True)
+        parser.add_argument(
+            "-e",
+            "--e",
+            "--enter",
+            dest="enter",
+            action="store_true",
+            help="Inject an /enter (\\r) after each Telegram message with a minimum delay (200ms).",
+        )
+        parser.add_argument(
+            "--no-enter",
+            action="store_false",
+            dest="enter",
+            help="Disable injecting an /enter after each Telegram message.",
+        )
+        parser.set_defaults(enter=False)
+        parser.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            help="Enable verbose logging.",
+        )
+        parser.add_argument(
+            "--log-file",
+            default="gramit.log",
+            help="Path to the log file. Defaults to 'gramit.log'.",
+        )
+        parser.add_argument(
+            "command",
+            nargs=argparse.REMAINDER,
+            help="The command to execute.",
+        )
+        parser.add_argument("--line-mode", action="store_true", help="Enable line mode.")
+        return parser
 
-    parser = get_parser()
-    args = parser.parse_args()
-    
-    # Configure logging to a file by default to avoid TUI interference
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        filename=args.log_file,
-        filemode="a",
-    )
-    
-    token = os.getenv("GRAMIT_TELEGRAM_TOKEN")
-    if not token:
-        raise ValueError("GRAMIT_TELEGRAM_TOKEN environment variable not set.")
+    def setup_logging(self):
+        """
+        Configures logging based on the provided arguments.
+        """
+        logging.basicConfig(
+            level=logging.DEBUG if self.args.verbose else logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            filename=self.args.log_file,
+            filemode="a",
+        )
 
-    # --- Registration Mode ---
-    if args.register:
+    async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Log the error and send a telegram message to notify the developer."""
+        logger.error(f"Telegram error: {context.error}")
+        if update:
+            logger.debug(f"Update that caused the error: {update}")
+
+    async def _register_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """A simple handler that prints information about any message it receives."""
+        if not update.message:
+            return
+
+        chat_id = update.message.chat.id
+        await update.message.reply_text(
+            f"Your Chat ID is: `{chat_id}`", parse_mode="Markdown"
+        )
+
+    async def run_registration(self):
+        """
+        Runs the bot in registration mode to help users find their Chat ID.
+        """
         print("Starting in registration mode...")
         print("Send any message to the bot to see your Chat ID.")
-        application = Application.builder().token(token).build()
-        application.add_handler(MessageHandler(filters.TEXT, _register_handler))
-        application.add_error_handler(error_handler)
-        async with application:
-            await application.start()
-            await application.updater.start_polling()
-            # Keep it running until manually stopped
+        self.application = Application.builder().token(self.token).build()
+        self.application.add_handler(MessageHandler(filters.TEXT, self._register_handler))
+        self.application.add_error_handler(self.error_handler)
+        
+        async with self.application:
+            await self.application.start()
+            await self.application.updater.start_polling()
             try:
                 await asyncio.Future()
             except asyncio.CancelledError:
                 pass
             finally:
-                await application.updater.stop()
-                await application.stop()
-        return
+                await self.application.updater.stop()
+                await self.application.stop()
 
-    # --- Main Gramit Logic ---
-    if not args.chat_id:
-        parser.error(
-            "the following arguments are required: --chat-id (or GRAMIT_CHAT_ID env var)"
-        )
-    if not args.command:
-        parser.error("the following arguments are required: command")
-
-    # --- Main Execution Loop ---
-    output_task = None
-    shutdown_event = asyncio.Event()
-
-    # --- Component Setup ---
-    orchestrator = Orchestrator(args.command)
-    _current_orchestrator = orchestrator
-
-    bot = Bot(token)
-
-    async def sender(msg):
+    async def sender(self, bot: Bot, msg: str):
+        """
+        Helper method to send a message to the authorized chat ID.
+        """
         try:
-            return await bot.send_message(chat_id=args.chat_id, text=msg, parse_mode="Markdown")
+            return await bot.send_message(
+                chat_id=self.args.chat_id, text=msg, parse_mode="Markdown"
+            )
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
 
-    input_router = InputRouter(
-        orchestrator=orchestrator,
-        authorized_chat_ids=[int(args.chat_id)],
-        shutdown_event=shutdown_event,
-        inject_enter=args.enter,
-    )
-    output_router = OutputRouter(
-        orchestrator=orchestrator,
-        sender=sender,
-        mode="line",
-        output_stream=args.output_stream,
-        mirror=args.mirror,
-    )
-    _current_output_router = output_router
+    def _setup_signal_handlers(self):
+        """
+        Registers signal handlers for graceful shutdown and window resizing.
+        """
+        loop = asyncio.get_running_loop()
 
-    # --- Application Setup ---
-    application = Application.builder().token(token).build()
-    # Route regular text to handle_message
-    application.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message)
-    )
-    # Route ALL commands to handle_command
-    application.add_handler(
-        MessageHandler(filters.COMMAND, input_router.handle_command)
-    )
-    application.add_error_handler(error_handler)
+        def handle_shutdown():
+            self.shutdown_event.set()
 
-    try:
-        async with application:
-            await application.start()
-            try:
-                await application.updater.start_polling()
-            except Exception as e:
-                await sender(
-                    f"Error starting Telegram bot: `{e}`. Please check your token."
-                )
-                return
-
-            # Send initial message
-            initial_message = (
-                f"*Gramit started for command:* `{' '.join(args.command)}`\n"
-                f"*Broadcasting to chat ID:* `{args.chat_id}`\n\n"
-                "Send `/help` for key shortcuts or `/quit` to terminate."
-            )
-            await sender(initial_message)
-
-            await orchestrator.start()
-
-            # Handle window resize and shutdown signals
-            import signal
-            loop = asyncio.get_running_loop()
-
-            def handle_shutdown():
-                shutdown_event.set()
-
-            try:
-                loop.add_signal_handler(signal.SIGWINCH, orchestrator.resize)
-                loop.add_signal_handler(signal.SIGINT, handle_shutdown)
-                loop.add_signal_handler(signal.SIGTERM, handle_shutdown)
-            except (NotImplementedError, AttributeError):
-                pass
-
-            try:
-                # Prepare terminal for mirroring BEFORE starting the task
-                output_router.prepare_terminal()
-
-                # Start the output router task
-                output_task = asyncio.create_task(output_router.start())
-
-                # Wait for either the output task to finish or the shutdown event
-                done, pending = await asyncio.wait(
-                    [output_task, asyncio.create_task(shutdown_event.wait())],
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-            finally:
-                # Security: Remove signal handlers once we start shutting down
-                try:
-                    loop.remove_signal_handler(signal.SIGINT)
-                    loop.remove_signal_handler(signal.SIGTERM)
-                except Exception:
-                    pass
-
-                # 1. Ensure orchestrator is shut down BEFORE terminal is restored.
-                # This prevents dying processes from writing to the raw terminal.
-                if orchestrator.is_alive():
-                    await orchestrator.shutdown()
-
-                # 2. Ensure terminal is restored regardless of how we exited
-                output_router.restore_terminal()
-
-                # 3. Cleanup the output task
-                if output_task and not output_task.done():
-                    output_task.cancel()
-                    try:
-                        await output_task
-                    except (asyncio.CancelledError, Exception):
-                        pass
-
-                # Check if we should send a goodbye message
-                if shutdown_event.is_set():
-                    await sender("Gramit application was interrupted. Goodbye!")
-                else:
-                    await sender("Orchestrated process has terminated. Goodbye!")
-
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        pass
-    except Exception as e:
-        logger.error(f"Gramit encountered an unhandled exception: {e}")
         try:
-            await sender(f"Gramit encountered an error: `{e}`. Shutting down.")
+            loop.add_signal_handler(signal.SIGWINCH, self.orchestrator.resize)
+            loop.add_signal_handler(signal.SIGINT, handle_shutdown)
+            loop.add_signal_handler(signal.SIGTERM, handle_shutdown)
+        except (NotImplementedError, AttributeError):
+            pass
+
+    def _cleanup_signal_handlers(self):
+        """
+        Removes previously registered signal handlers.
+        """
+        loop = asyncio.get_running_loop()
+        try:
+            loop.remove_signal_handler(signal.SIGINT)
+            loop.remove_signal_handler(signal.SIGTERM)
         except Exception:
             pass
 
+    async def main(self):
+        """
+        Primary execution logic for the Gramit application.
+        """
+        load_dotenv()
+        parser = self.get_parser()
+        self.args = parser.parse_args()
+        
+        self.setup_logging()
+        
+        self.token = os.getenv("GRAMIT_TELEGRAM_TOKEN")
+        if not self.token:
+            print("Error: GRAMIT_TELEGRAM_TOKEN environment variable not set.")
+            return
 
-def run():
-    import signal
-    import sys
-    import os
+        if self.args.register:
+            await self.run_registration()
+            return
 
-    def signal_handler(sig, frame):
-        # 1. Kill orchestrated process first to stop output
-        if _current_orchestrator and _current_orchestrator.is_alive():
+        if not self.args.chat_id:
+            parser.error("the following arguments are required: --chat-id (or GRAMIT_CHAT_ID env var)")
+        if not self.args.command:
+            parser.error("the following arguments are required: command")
+
+        self.orchestrator = Orchestrator(self.args.command)
+        bot = Bot(self.token)
+
+        async def bot_sender(msg):
+            return await self.sender(bot, msg)
+
+        input_router = InputRouter(
+            orchestrator=self.orchestrator,
+            authorized_chat_ids=[int(self.args.chat_id)],
+            shutdown_event=self.shutdown_event,
+            inject_enter=self.args.enter,
+        )
+        self.output_router = OutputRouter(
+            orchestrator=self.orchestrator,
+            sender=bot_sender,
+            mode="line",
+            output_stream=self.args.output_stream,
+            mirror=self.args.mirror,
+        )
+
+        self.application = Application.builder().token(self.token).build()
+        self.application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, input_router.handle_message)
+        )
+        self.application.add_handler(
+            MessageHandler(filters.COMMAND, input_router.handle_command)
+        )
+        self.application.add_error_handler(self.error_handler)
+
+        output_task = None
+
+        try:
+            async with self.application:
+                await self.application.start()
+                try:
+                    await self.application.updater.start_polling()
+                except Exception as e:
+                    await bot_sender(f"Error starting Telegram bot: `{e}`. Please check your token.")
+                    return
+
+                await bot_sender(
+                    f"*Gramit started for command:* `{' '.join(self.args.command)}`\n"
+                    f"*Broadcasting to chat ID:* `{self.args.chat_id}`\n\n"
+                    "Send `/help` for key shortcuts or `/quit` to terminate."
+                )
+
+                await self.orchestrator.start()
+                self._setup_signal_handlers()
+
+                try:
+                    self.output_router.prepare_terminal()
+                    output_task = asyncio.create_task(self.output_router.start())
+                    
+                    await asyncio.wait(
+                        [output_task, asyncio.create_task(self.shutdown_event.wait())],
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                finally:
+                    self._cleanup_signal_handlers()
+
+                    if self.orchestrator.is_alive():
+                        await self.orchestrator.shutdown()
+
+                    self.output_router.restore_terminal()
+
+                    if output_task and not output_task.done():
+                        output_task.cancel()
+                        try:
+                            await output_task
+                        except (asyncio.CancelledError, Exception):
+                            pass
+
+                    if self.shutdown_event.is_set():
+                        await bot_sender("Gramit application was interrupted. Goodbye!")
+                    else:
+                        await bot_sender("Orchestrated process has terminated. Goodbye!")
+
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        except Exception as e:
+            logger.error(f"Gramit encountered an unhandled exception: {e}")
             try:
-                if _current_orchestrator._pid:
-                    os.kill(_current_orchestrator._pid, 9) # SIGKILL for immediate stop
+                await bot_sender(f"Gramit encountered an error: `{e}`. Shutting down.")
             except Exception:
                 pass
 
-        # 2. Then restore terminal
-        if _current_output_router:
-            _current_output_router.restore_terminal()
+
+# Global singleton for signal handling
+_cli_instance: Optional[GramitCLI] = None
+
+def run():
+    """
+    Synchronous entrypoint that handles initial setup and signal registration.
+    """
+    global _cli_instance
+    _cli_instance = GramitCLI()
+
+    def signal_handler(sig, frame):
+        if _cli_instance.orchestrator and _cli_instance.orchestrator.is_alive():
+            try:
+                if _cli_instance.orchestrator._pid:
+                    os.kill(_cli_instance.orchestrator._pid, 9)
+            except Exception:
+                pass
+
+        if _cli_instance.output_router:
+            _cli_instance.output_router.restore_terminal()
         else:
-            # Fallback for when router isn't yet initialized
             try:
                 os.write(sys.stdout.fileno(), RESTORE_TERMINAL_SEQ)
             except Exception:
                 pass
         sys.exit(1)
 
-    # Register basic signal handlers for sync cleanup
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
-        asyncio.run(main())
+        asyncio.run(_cli_instance.main())
     except (KeyboardInterrupt, ValueError) as e:
         if isinstance(e, ValueError):
             print(f"Error: {e}")
     finally:
-        # Final safety net for terminal restoration
-        if _current_output_router:
-            _current_output_router.restore_terminal()
+        if _cli_instance.output_router:
+            _cli_instance.output_router.restore_terminal()

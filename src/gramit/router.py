@@ -6,10 +6,8 @@ from typing import Callable, Coroutine, Any, Optional
 
 from .orchestrator import Orchestrator
 from .debouncer import AsyncDebouncer
+from .terminal import TerminalManager
 from .utils import (
-    RESTORE_TERMINAL_SEQ,
-    CLEAR_SCREEN,
-    HOME_CURSOR,
     logger,
 )
 
@@ -134,10 +132,9 @@ class OutputRouter:
         self._output_stream = output_stream
         self._mirror = mirror
         self._tailer: Optional[FileTailer] = None
-        self._old_settings = None
+        self._terminal_manager = TerminalManager(enabled=mirror)
         self._mirror_timer: Optional[asyncio.TimerHandle] = None
         self._mirror_debounce_interval = 0.04 # 40ms for better TUI quiescence (approx 25fps)
-        self._restored = False
 
     async def start(self):
         """
@@ -162,7 +159,9 @@ class OutputRouter:
             await self._final_flush()
 
     def _setup_readers(self):
-        """Configures async loop readers for PTY and stdin."""
+        """
+        Configures asynchronous loop readers for the PTY master and local stdin.
+        """
         loop = asyncio.get_running_loop()
         master_fd = self._orchestrator._master_fd
         if master_fd is not None:
@@ -177,7 +176,9 @@ class OutputRouter:
                 logger.debug(f"Could not add reader for stdin: {e}")
 
     def _cleanup_readers(self):
-        """Removes async loop readers."""
+        """
+        Removes previously registered asynchronous loop readers.
+        """
         loop = asyncio.get_running_loop()
         master_fd = self._orchestrator._master_fd
         if master_fd is not None:
@@ -193,7 +194,9 @@ class OutputRouter:
             self._tailer.stop()
 
     async def _final_flush(self):
-        """Performs final flushes of all buffers before shutdown."""
+        """
+        Performs a final flush of all remaining data in both mirror and Telegram buffers.
+        """
         if self._buffer:
             await self._debouncer.push(self._buffer)
             self._buffer = ""
@@ -202,7 +205,10 @@ class OutputRouter:
         await self._debouncer.flush()
 
     def _on_pty_readable(self):
-        """Callback for when the PTY master FD has data to read."""
+        """
+        Callback executed when the PTY master file descriptor is ready for reading.
+        Reads data and routes it to the appropriate destinations.
+        """
         try:
             data = os.read(self._orchestrator._master_fd, 4096)
             if not data:
@@ -214,7 +220,10 @@ class OutputRouter:
             logger.debug(f"Error reading from PTY: {e}")
 
     def _on_stdin_readable(self):
-        """Callback for when local stdin has data to read."""
+        """
+        Callback executed when the local stdin file descriptor is ready for reading.
+        Reads input and writes it to the PTY orchestrated process.
+        """
         import sys
         try:
             data = os.read(sys.stdin.fileno(), 4096)
@@ -225,7 +234,12 @@ class OutputRouter:
 
     async def _handle_new_data(self, data: str | bytes, mirror_only: bool = False, telegram_only: bool = False):
         """
-        Routes incoming data to the mirror and/or Telegram debouncer.
+        Routes incoming data to the local terminal mirror and/or the Telegram debouncer.
+
+        Args:
+            data: The incoming string or byte data.
+            mirror_only: If True, only routes to the local terminal.
+            telegram_only: If True, only routes to the Telegram debouncer.
         """
         if self._mirror and not telegram_only:
             self._route_to_mirror(data)
@@ -234,7 +248,12 @@ class OutputRouter:
             await self._route_to_telegram(data)
 
     def _route_to_mirror(self, data: str | bytes):
-        """Appends data to the mirror buffer and schedules a flush."""
+        """
+        Appends data to the mirror buffer and schedules an asynchronous flush.
+
+        Args:
+            data: The data to mirror locally.
+        """
         if isinstance(data, str):
             self._mirror_buffer += data.encode('utf-8', errors='replace')
         else:
@@ -242,7 +261,12 @@ class OutputRouter:
         self._schedule_mirror_flush()
 
     async def _route_to_telegram(self, data: str | bytes):
-        """Appends data to the telegram buffer and pushes safe chunks to the debouncer."""
+        """
+        Appends data to the Telegram buffer and pushes complete ANSI-safe chunks to the debouncer.
+
+        Args:
+            data: The data to route to Telegram.
+        """
         if isinstance(data, bytes):
             text = data.decode('utf-8', errors='replace')
         else:
@@ -338,62 +362,11 @@ class OutputRouter:
 
     def prepare_terminal(self):
         """Clears terminal and sets local stdin to raw mode."""
-        import sys
-        import tty
-        import termios
-        import io
-        
-        try:
-            fd = sys.stdin.fileno()
-            self._old_settings = termios.tcgetattr(fd)
-            tty.setraw(fd)
-        except (Exception, io.UnsupportedOperation):
-            self._old_settings = None
-
-        try:
-            os.write(sys.stdout.fileno(), (CLEAR_SCREEN + HOME_CURSOR).encode("ascii"))
-        except Exception:
-            pass
+        self._terminal_manager.prepare_terminal()
 
     def restore_terminal(self):
         """Restores the terminal to its original state."""
-        if not self._mirror or self._restored:
-            return
-
-        self._restored = True
-        import sys
-        import termios
-        import io
-        
-        try:
-            fd = sys.stdin.fileno()
-            if self._old_settings:
-                try:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, self._old_settings)
-                except Exception:
-                    pass
-        except (Exception, io.UnsupportedOperation):
-            pass
-
-        try:
-            os.write(sys.stdout.fileno(), RESTORE_TERMINAL_SEQ)
-        except Exception:
-            pass
-        
-        # Settle time and flush
-        import time
-        time.sleep(0.1)
-
-        try:
-            termios.tcflush(fd, termios.TCIFLUSH)
-        except Exception:
-            pass
-
-        import subprocess
-        try:
-            subprocess.run(["stty", "sane"], check=False, capture_output=True)
-        except Exception:
-            pass
+        self._terminal_manager.restore_terminal()
 
     async def _flush_buffer(self, items: list[str]):
         """Processes collected chunks, strips ANSI, and sends to Telegram."""

@@ -7,37 +7,6 @@ import logging
 # Configure logging for the project
 logger = logging.getLogger("gramit")
 
-# ANSI Escape Sequences
-# CSI (Control Sequence Introducer)
-ESC = "\x1b"
-CSI = ESC + "["
-
-# Terminal State Control
-CLEAR_SCREEN = CSI + "2J"
-HOME_CURSOR = CSI + "H"
-SHOW_CURSOR = CSI + "25h"
-HIDE_CURSOR = CSI + "25l"
-ENTER_ALT_SCREEN = CSI + "?1049h"
-EXIT_ALT_SCREEN = CSI + "?1049l"
-
-# Mouse Tracking (Disable sequences)
-DISABLE_MOUSE_VT200 = CSI + "?1000l"
-DISABLE_MOUSE_BUTTON = CSI + "?1002l"
-DISABLE_MOUSE_ANY = CSI + "?1003l"
-DISABLE_MOUSE_SGR = CSI + "?1006l"
-
-# Combined Restoration Sequence
-RESTORE_TERMINAL_SEQ = (
-    DISABLE_MOUSE_VT200 +
-    DISABLE_MOUSE_BUTTON +
-    DISABLE_MOUSE_ANY +
-    DISABLE_MOUSE_SGR +
-    EXIT_ALT_SCREEN +
-    SHOW_CURSOR +
-    CLEAR_SCREEN +
-    HOME_CURSOR
-).encode("ascii")
-
 
 def get_terminal_size(fallback=(80, 24)):
     """

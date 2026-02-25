@@ -11,6 +11,7 @@ Group these changes into logical features, bugfixes, etc., and commit them one b
 2.  **Proposal:**
     - Present the proposed commit groups and their commit messages to me for approval.
     - Use Conventional Commits format: `<type>(<scope>): <subject>`.
+    - Use the `ask_user` to confirm with the user before proceeding with the commits (simple yes/no dialog).
 3.  **Execution:**
     - After confirmation, for each group:
         a. Stage the files.

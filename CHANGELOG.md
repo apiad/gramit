@@ -31,23 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Maintenance & Refactor
 - **Core Refactoring:**
-    - Extracted terminal size management and ANSI constants into a new `src/gramit/utils.py` to ensure consistency across the codebase.
-    - Refactored `OutputRouter.start` in `src/gramit/router.py` to use a cleaner, reader-based architecture for PTY and stdin monitoring.
-    - Simplified `Orchestrator.start` and added a dedicated `_prepare_child_process` method for better readability and easier testing.
-- **Documentation:**
-    - Added comprehensive, high-quality docstrings to all core functions and classes, including `AsyncDebouncer`, `OutputRouter`, and `Orchestrator`.
-    - Documented internal methods like `_handle_new_data` and `_extract_safe_chunk` to explain complex byte/string and ANSI handling.
+    - Extracted terminal state management into a dedicated `TerminalManager` class in `src/gramit/terminal.py`, separating I/O concerns from routing.
+    - Refactored the monolithic `main` function in `src/gramit/cli.py` into a structured `GramitCLI` class for better application lifecycle management.
+    - Simplified and standardized `_parse_key_command` in `src/gramit/telegram.py` to be order-insensitive (e.g., `/c /a a` now works same as `/a /c a`).
+    - DRYed up `InputRouter` with a centralized `_is_authorized` check.
+- **Documentation & Typing:**
+    - Added comprehensive docstrings to all core functions and classes.
+    - Improved type hinting in `AsyncDebouncer` using generics (`TypeVar`).
 - **Reliability & Testing:**
-    - Added a robust `tests/test_utils.py` to verify terminal size fetching and shared utilities.
-    - Enhanced `tests/test_router.py` with edge-case tests for partial ANSI sequence splitting and complete sequence handling.
-    - Added "pressure" tests to `tests/test_debouncer.py` to verify immediate flushing when `max_buffer_size` is reached.
-    - Fixed a bug in `_extract_safe_chunk` where complete ANSI sequences followed by text were incorrectly buffered as partial.
-- **Observability:**
-    - Replaced project-wide `print` calls with a standard Python `logging` framework.
-    - Configured logging to a file (`gramit.log`) by default to prevent interference with the local TUI display.
-    - Added a `-v` / `--verbose` CLI flag to enable debug-level logging.
-    - Added a `--log-file` CLI option to customize the log output destination.
-    - Audited and improved error handling across the project, replacing silent `except: pass` with targeted exceptions and debug logging.
+    - Added `tests/test_terminal.py` to verify `TerminalManager` functionality.
+    - Enhanced `tests/test_telegram.py` with exhaustive tests for complex key modifier combinations.
+    - Updated all existing tests to work with the new `GramitCLI` and `TerminalManager` architecture.
 
 ### Changed
 - **Telegram Output Formatting:**

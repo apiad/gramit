@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.7.0]
+## [v0.7.1] - 2026-02-25
+
+### Added
+- **Release Automation:**
+    - Added the `/release` command to Gemini CLI for automated release workflows.
+    - Added `.gemini/commands/release.toml` with the release procedure.
+    - Updated the welcome hook to include the `/release` command in the help message.
+- **Workflow Improvements:**
+    - Updated the `/commit` command procedure to include an explicit user confirmation step before executing commits.
+
+## [v0.7.0] - 2026-02-25
 
 ### Added
 - **Welcome Session Hook:**

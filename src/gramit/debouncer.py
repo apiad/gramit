@@ -1,8 +1,8 @@
 import asyncio
-from typing import List, Callable, Any, Coroutine
+from typing import List, Callable, Any, Coroutine, TypeVar
 from .utils import logger
 
-T = Any
+T = TypeVar("T")
 
 
 class AsyncDebouncer:

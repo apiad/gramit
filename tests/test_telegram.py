@@ -139,6 +139,43 @@ async def test_input_router_key_shortcuts():
     await router.handle_command(MockUpdate(text="/f1", chat_id=12345), None)
     mock_orchestrator.write.assert_awaited_with("\x1bOP")
 
+def test_parse_key_command_complex_modifiers():
+    """
+    Exhaustively tests _parse_key_command with complex modifier combinations.
+    """
+    router = InputRouter(MagicMock(), [], MagicMock())
+    
+    # Simple modifiers
+    assert router._parse_key_command("/c a") == "\x01"
+    assert router._parse_key_command("/a a") == "\x1ba"
+    assert router._parse_key_command("/s a") == "A"
+    
+    # Combined modifiers
+    # Ctrl + Alt + a
+    assert router._parse_key_command("/c /a a") == "\x1b\x01"
+    # Alt + Ctrl + a (Order depends on implementation, but result should be same for terminal)
+    assert router._parse_key_command("/a /c a") == "\x1b\x01"
+    
+    # Triple combination: Ctrl + Alt + Shift + z
+    # Implementation applies Shift (z -> Z), then Control (Z -> \x1a), then Alt (\x1a -> \x1b\x1a)
+    assert router._parse_key_command("/c /a /s z") == "\x1b\x1a"
+    
+    # What if it's "/c /s a"?
+    # /s 'a' -> 'A'
+    # /c 'A' -> '\x01'
+    assert router._parse_key_command("/c /s a") == "\x01"
+    
+    # Modifiers with special keys
+    assert router._parse_key_command("/c /up") == "\x1b[A" # Ctrl doesn't apply to multibyte
+    assert router._parse_key_command("/a /enter") == "\x1b\r"
+    
+    # Multiple space-separated modifiers
+    assert router._parse_key_command("/c /a x") == "\x1b\x18"
+    
+    # Invalid sequences
+    assert router._parse_key_command("/c /unknown a") is None
+    assert router._parse_key_command("/c") is None
+
 
 @pytest.mark.asyncio
 async def test_input_router_multiline_message():

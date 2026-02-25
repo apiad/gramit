@@ -23,18 +23,34 @@ class InputRouter:
         self._shutdown_event = shutdown_event
         self._inject_enter = inject_enter
 
+    def _is_authorized(self, update: Update) -> bool:
+        """
+        Checks if the incoming update is from an authorized chat.
+
+        Args:
+            update: The Telegram update object.
+
+        Returns:
+            True if authorized, False otherwise.
+        """
+        if not update.message or not update.message.text:
+            return False
+
+        return update.message.chat.id in self._authorized_chat_ids
+
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Primary message handler for the Telegram bot.
+        Validates the sender and routes sanitized text to the orchestrator.
+
+        Args:
+            update: The Telegram update object.
+            context: The context for the update.
         """
-        if not update.message or not update.message.text:
+        if not self._is_authorized(update):
             return
 
-        chat_id = update.message.chat.id
         text = update.message.text
-
-        if chat_id not in self._authorized_chat_ids:
-            return
 
         # Security: Basic sanitization of input text
         # Filter out control characters that might be used for escape sequence injection,
@@ -57,15 +73,17 @@ class InputRouter:
     async def handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Handles incoming Telegram commands.
+        Validates the sender and processes commands like /quit, /help, or key shortcuts.
+
+        Args:
+            update: The Telegram update object.
+            context: The context for the update.
         """
-        if not update.message or not update.message.text:
+        if not self._is_authorized(update):
             return
 
         chat_id = update.message.chat.id
         command_text = update.message.text.strip()
-
-        if chat_id not in self._authorized_chat_ids:
-            return
 
         # 1. Check for standard /quit command
         if command_text == "/quit":
@@ -170,27 +188,33 @@ class InputRouter:
             
         result = base_key_part
         
-        # Apply modifiers in reverse order (inner to outer)
-        for mod in reversed(modifiers):
-            if mod == "c": # Control
-                if len(result) == 1:
-                    c = result.lower()
-                    if "a" <= c <= "z":
-                        result = chr(ord(c) - ord("a") + 1)
-                    elif c == "[":
-                        result = "\x1b"
-                    elif c == "\\":
-                        result = "\x1c"
-                    elif c == "]":
-                        result = "\x1d"
-                    elif c == "^":
-                        result = "\x1e"
-                    elif c == "_":
-                        result = "\x1f"
-            elif mod == "a": # Alt/Meta
-                result = "\x1b" + result
-            elif mod == "s": # Shift
-                if len(result) == 1:
-                    result = result.upper()
+        # Apply modifiers in a fixed order (Shift -> Control -> Alt)
+        # to ensure order-insensitivity in the command string.
+        
+        # 1. Shift
+        if "s" in modifiers:
+            if len(result) == 1:
+                result = result.upper()
+        
+        # 2. Control
+        if "c" in modifiers:
+            if len(result) == 1:
+                c = result.lower()
+                if "a" <= c <= "z":
+                    result = chr(ord(c) - ord("a") + 1)
+                elif c == "[":
+                    result = "\x1b"
+                elif c == "\\":
+                    result = "\x1c"
+                elif c == "]":
+                    result = "\x1d"
+                elif c == "^":
+                    result = "\x1e"
+                elif c == "_":
+                    result = "\x1f"
+        
+        # 3. Alt/Meta
+        if "a" in modifiers:
+            result = "\x1b" + result
                 
         return result

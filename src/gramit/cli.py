@@ -91,6 +91,11 @@ def get_parser():
         help="Enable verbose logging.",
     )
     parser.add_argument(
+        "--log-file",
+        default="gramit.log",
+        help="Path to the log file. Defaults to 'gramit.log'.",
+    )
+    parser.add_argument(
         "command",
         nargs=argparse.REMAINDER,
         help="The command to execute.",
@@ -110,10 +115,12 @@ async def main():
     parser = get_parser()
     args = parser.parse_args()
     
-    # Configure logging level
+    # Configure logging to a file by default to avoid TUI interference
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        filename=args.log_file,
+        filemode="a",
     )
     
     token = os.getenv("GRAMIT_TELEGRAM_TOKEN")

@@ -40,7 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Fixed a bug in `_extract_safe_chunk` where complete ANSI sequences followed by text were incorrectly buffered as partial.
 - **Observability:**
     - Replaced project-wide `print` calls with a standard Python `logging` framework.
+    - Configured logging to a file (`gramit.log`) by default to prevent interference with the local TUI display.
     - Added a `-v` / `--verbose` CLI flag to enable debug-level logging.
+    - Added a `--log-file` CLI option to customize the log output destination.
     - Audited and improved error handling across the project, replacing silent `except: pass` with targeted exceptions and debug logging.
 
 ### Changed

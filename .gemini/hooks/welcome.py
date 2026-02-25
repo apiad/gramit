@@ -35,26 +35,27 @@ def main():
     message_lines = [
         f"🚀 Welcome to Gemini CLI for `{name}`",
         f"📝 {description}",
-        "",
+        " ",
         "📊 Git Status:",
         git_status,
-        "",
+        " ",
         "🛠️  Available Commands:",
         "- `/commit`: Prepare and commit changes.",
         "- `/maintainance`: Project maintenance tasks.",
-        "",
+        "- `/release`: Run release workflow.",
+        " ",
         "💡 Tip: Run `/onboard` for a brief explanation of the project.",
     ]
 
     system_message = "\n".join(message_lines)
-    
+
     response = {
         "systemMessage": system_message,
         "hookSpecificOutput": {
             "additionalContext": f"The user has started a Gemini CLI session for the project '{name}'. Description: {description}. Git Status: {git_status}"
         }
     }
-    
+
     print(json.dumps(response))
 
 if __name__ == "__main__":
